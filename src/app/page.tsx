@@ -12,7 +12,9 @@ import {
   XIcon,
   TrashIcon,
   MessageSquareIcon,
-  ArrowUpIcon
+  ArrowUpIcon,
+  LanguagesIcon,
+  MenuIcon
 } from "lucide-react";
 
 interface Message {
@@ -27,6 +29,69 @@ interface KeyPoint {
   messageId: string;
   relevance: "high" | "medium" | "low";
 }
+
+interface Translations {
+  [key: string]: {
+    pt: string;
+    en: string;
+  };
+}
+
+const translations: Translations = {
+  // Header
+  newChat: { pt: "Novo Chat", en: "New Chat" },
+  chatList: { pt: "Lista de Chats", en: "Chat List" },
+  settings: { pt: "Configurações", en: "Settings" },
+  keyPoints: { pt: "Key Points", en: "Key Points" },
+  online: { pt: "Online", en: "Online" },
+  
+  // Chat
+  welcome: { pt: "Bem-vindo ao FABOT!", en: "Welcome to FABOT!" },
+  emptyChat: { pt: "Chat vazio", en: "Empty Chat" },
+  welcomeDesc: { pt: "Conversas inteligentes com extração automática de pontos-chave.", en: "Smart conversations with automatic key point extraction." },
+  emptyChatDesc: { pt: "Este chat está vazio. Comece digitando uma mensagem!", en: "This chat is empty. Start by typing a message!" },
+  howItWorks: { pt: "Como você funciona?", en: "How do you work?" },
+  explainML: { pt: "Explique machine learning", en: "Explain machine learning" },
+  programmingTips: { pt: "Dicas de programação", en: "Programming tips" },
+  you: { pt: "Você", en: "You" },
+  thinking: { pt: "FABOT está pensando...", en: "FABOT is thinking..." },
+  typePlaceholder: { pt: "Digite sua mensagem...", en: "Type your message..." },
+  
+  // Chat List
+  yourChats: { pt: "Seus Chats", en: "Your Chats" },
+  noChats: { pt: "Nenhum chat ainda.", en: "No chats yet." },
+  createFirst: { pt: "Clique em + para criar seu primeiro chat!", en: "Click + to create your first chat!" },
+  keyPointsCount: { pt: "pontos-chave", en: "key points" },
+  
+  // Settings
+  visualGuide: { pt: "Visual Guide", en: "Visual Guide" },
+  showKeyPoints: { pt: "Mostrar Key Points", en: "Show Key Points" },
+  data: { pt: "Dados", en: "Data" },
+  chats: { pt: "Chats", en: "Chats" },
+  clearData: { pt: "Limpar dados", en: "Clear data" },
+  clearConfirm: { pt: "Limpar todos os dados?", en: "Clear all data?" },
+  language: { pt: "Idioma", en: "Language" },
+  portuguese: { pt: "Português", en: "Portuguese" },
+  english: { pt: "Inglês", en: "English" },
+  
+  // Key Points
+  keyPointsTitle: { pt: "Key Points", en: "Key Points" },
+  keyPointsDesc: { pt: "Pontos principais em tempo real", en: "Main points in real time" },
+  analyzing: { pt: "Analisando...", en: "Analyzing..." },
+  waitingConversation: { pt: "Aguardando conversa...", en: "Waiting for conversation..." },
+  startConversation: { pt: "Comece uma conversa para ver os pontos-chave aparecerem automaticamente!", en: "Start a conversation to see key points appear automatically!" },
+  pointsIdentified: { pt: "ponto identificado", en: "point identified" },
+  pointsIdentifiedPlural: { pt: "pontos identificados", en: "points identified" },
+  
+  // Relevance
+  high: { pt: "alta", en: "high" },
+  medium: { pt: "média", en: "medium" },
+  low: { pt: "baixa", en: "low" },
+  
+  // Mobile
+  mobileMenu: { pt: "Menu", en: "Menu" },
+  close: { pt: "Fechar", en: "Close" }
+};
 
 interface ConversationAnalysis {
   keyPoints: string[];
@@ -62,9 +127,17 @@ export default function FabotChat() {
   const [showSettings, setShowSettings] = useState(false);
   const [keyPoints, setKeyPoints] = useState<KeyPoint[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [language, setLanguage] = useState<'pt' | 'en'>('pt');
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showMobileKeyPoints, setShowMobileKeyPoints] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 🌍 Função para traduzir
+  const t = (key: string): string => {
+    return translations[key]?.[language] || key;
+  };
 
   // 💾 Carregar dados do localStorage na inicialização
   useEffect(() => {
@@ -436,8 +509,8 @@ REGRAS:
         }
       `}</style>
       
-      {/* 🎨 Sidebar esquerda - estilo Libra */}
-      <div className="w-16 bg-black/20 backdrop-blur-xl border-r border-purple-500/20 flex flex-col items-center py-4">
+      {/* 🎨 Sidebar esquerda - Desktop apenas */}
+      <div className="hidden md:flex w-16 bg-black/20 backdrop-blur-xl border-r border-purple-500/20 flex-col items-center py-4">
         <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center mb-6">
           <SparklesIcon className="w-6 h-6 text-white" />
         </div>
@@ -446,21 +519,21 @@ REGRAS:
           <button 
             onClick={createNewChat}
             className="w-10 h-10 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center justify-center transition-colors"
-            title="Novo Chat"
+            title={t('newChat')}
           >
             <PlusIcon className="w-5 h-5 text-purple-300" />
           </button>
           <button 
             onClick={() => setShowChatList(!showChatList)}
             className="w-10 h-10 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center justify-center transition-colors"
-            title="Lista de Chats"
+            title={t('chatList')}
           >
             <MessageSquareIcon className="w-5 h-5 text-purple-300" />
           </button>
           <button 
             onClick={() => setShowSettings(!showSettings)}
             className="w-10 h-10 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center justify-center transition-colors"
-            title="Configurações"
+            title={t('settings')}
           >
             <SettingsIcon className="w-5 h-5 text-purple-300" />
           </button>
@@ -472,7 +545,7 @@ REGRAS:
         <div className="w-80 bg-black/30 backdrop-blur-xl border-r border-purple-500/20 flex flex-col">
           <div className="p-4 border-b border-purple-500/20">
             <div className="flex items-center justify-between">
-              <h2 className="text-white font-semibold">Seus Chats</h2>
+              <h2 className="text-white font-semibold">{t('yourChats')}</h2>
               <button
                 onClick={() => setShowChatList(false)}
                 className="p-1 hover:bg-purple-700/50 rounded transition-colors"
@@ -485,8 +558,8 @@ REGRAS:
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {chats.length === 0 ? (
               <p className="text-purple-300/60 text-sm text-center py-8">
-                Nenhum chat ainda.<br />
-                Clique em + para criar seu primeiro chat!
+                {t('noChats')}<br />
+                {t('createFirst')}
               </p>
             ) : (
               chats.map((chat) => (
@@ -505,7 +578,7 @@ REGRAS:
                         {chat.name}
                       </h3>
                       <p className="text-purple-300/60 text-xs">
-                        {chat.keyPoints?.length || 0} pontos-chave
+                        {chat.keyPoints?.length || 0} {t('keyPointsCount')}
                       </p>
                     </div>
                     <button
@@ -530,7 +603,7 @@ REGRAS:
         <div className="w-80 bg-black/30 backdrop-blur-xl border-r border-purple-500/20 flex flex-col">
           <div className="p-4 border-b border-purple-500/20">
             <div className="flex items-center justify-between">
-              <h2 className="text-white font-semibold">Configurações</h2>
+              <h2 className="text-white font-semibold">{t('settings')}</h2>
               <button
                 onClick={() => setShowSettings(false)}
                 className="p-1 hover:bg-purple-700/50 rounded transition-colors"
@@ -542,7 +615,7 @@ REGRAS:
           
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/30">
-              <h3 className="text-white font-medium mb-2">Visual Guide</h3>
+              <h3 className="text-white font-medium mb-2">{t('visualGuide')}</h3>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -550,22 +623,22 @@ REGRAS:
                   onChange={(e) => setShowGuide(e.target.checked)}
                   className="rounded"
                 />
-                <span className="text-purple-200 text-sm">Mostrar Key Points</span>
+                <span className="text-purple-200 text-sm">{t('showKeyPoints')}</span>
               </label>
             </div>
 
             <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/30">
-              <h3 className="text-white font-medium mb-2">Dados</h3>
+              <h3 className="text-white font-medium mb-2">{t('data')}</h3>
               <div className="space-y-2">
                 <p className="text-purple-200 text-sm">
-                  Chats: {chats.length}
+                  {t('chats')}: {chats.length}
                 </p>
                 <p className="text-purple-200 text-sm">
-                  Key Points: {chats.reduce((total, chat) => total + (chat.keyPoints?.length || 0), 0)}
+                  {t('keyPoints')}: {chats.reduce((total, chat) => total + (chat.keyPoints?.length || 0), 0)}
                 </p>
                 <button
                   onClick={() => {
-                    if (confirm('Limpar todos os dados?')) {
+                    if (confirm(t('clearConfirm'))) {
                       setChats([]);
                       setCurrentChatId(null);
                       setMessages([]);
@@ -576,7 +649,7 @@ REGRAS:
                   }}
                   className="w-full px-3 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-300 rounded-lg transition-colors text-sm border border-red-500/30"
                 >
-                  Limpar dados
+                  {t('clearData')}
                 </button>
               </div>
             </div>
@@ -590,28 +663,56 @@ REGRAS:
         {/* Header com estilo Libra */}
         <header className="bg-black/40 backdrop-blur-xl border-b border-purple-500/20 p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                FABOT
-              </h1>
-              <p className="text-sm text-purple-300/80">
-                {getCurrentChatName()}
-              </p>
+            <div className="flex items-center gap-3">
+              {/* Menu mobile */}
+              <button
+                onClick={() => setShowMobileMenu(true)}
+                className="md:hidden p-2 hover:bg-purple-700/30 rounded-lg transition-colors"
+              >
+                <MenuIcon className="w-5 h-5 text-purple-300" />
+              </button>
+              
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  FABOT
+                </h1>
+                <p className="text-sm text-purple-300/80">
+                  {getCurrentChatName()}
+                </p>
+              </div>
             </div>
             
             <div className="flex items-center gap-3">
+              {/* Botão de idioma */}
+              <button
+                onClick={() => setLanguage(language === 'pt' ? 'en' : 'pt')}
+                className="p-2 bg-purple-600/20 hover:bg-purple-600/40 rounded-lg transition-colors"
+                title={language === 'pt' ? 'Switch to English' : 'Mudar para Português'}
+              >
+                <LanguagesIcon className="w-4 h-4 text-purple-300" />
+              </button>
+              
+              {/* Key Points mobile */}
+              <button
+                onClick={() => setShowMobileKeyPoints(true)}
+                className="md:hidden px-3 py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 rounded-lg transition-colors text-sm border border-purple-500/30"
+              >
+                {t('keyPoints')}
+              </button>
+              
+              {/* Key Points desktop */}
               {!showGuide && (
                 <button
                   onClick={() => setShowGuide(true)}
-                  className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 rounded-lg transition-colors text-sm border border-purple-500/30"
+                  className="hidden md:block px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 rounded-lg transition-colors text-sm border border-purple-500/30"
                 >
-                  Key Points
+                  {t('keyPoints')}
                 </button>
               )}
               
-              <div className="flex items-center gap-2 text-sm text-purple-300">
+              <div className="hidden sm:flex items-center gap-2 text-sm text-purple-300">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span>Online</span>
+                <span>{t('online')}</span>
               </div>
             </div>
           </div>
@@ -625,19 +726,19 @@ REGRAS:
                 <BotIcon className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-3">
-                {currentChatId ? 'Chat vazio' : 'Bem-vindo ao FABOT!'}
+                {currentChatId ? t('emptyChat') : t('welcome')}
               </h2>
               <p className="text-purple-300/80 mb-8 max-w-md mx-auto">
                 {currentChatId 
-                  ? 'Este chat está vazio. Comece digitando uma mensagem!' 
-                  : 'Conversas inteligentes com extração automática de pontos-chave.'
+                  ? t('emptyChatDesc')
+                  : t('welcomeDesc')
                 }
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
                 {[
-                  "Como você funciona?",
-                  "Explique machine learning",
-                  "Dicas de programação"
+                  t('howItWorks'),
+                  t('explainML'),
+                  t('programmingTips')
                 ].map((suggestion, index) => (
                   <button
                     key={index}
@@ -666,7 +767,7 @@ REGRAS:
               <div className={`max-w-2xl ${message.role === 'user' ? 'order-first' : ''}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm font-medium text-purple-300">
-                    {message.role === 'user' ? 'Você' : 'FABOT'}
+                    {message.role === 'user' ? t('you') : 'FABOT'}
                   </span>
                   <span className="text-xs text-purple-400/60">
                     {formatTime(message.timestamp)}
@@ -704,7 +805,7 @@ REGRAS:
                     <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                     <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
-                  <span className="text-sm">FABOT está pensando...</span>
+                  <span className="text-sm">{t('thinking')}</span>
                 </div>
               </div>
             </div>
@@ -722,7 +823,7 @@ REGRAS:
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Digite sua mensagem..."
+                placeholder={t('typePlaceholder')}
                 className="w-full p-4 bg-black/40 backdrop-blur-xl border border-purple-500/30 rounded-2xl text-white placeholder-purple-400/60 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-32 min-h-[3rem]"
                 rows={1}
               />
@@ -739,9 +840,9 @@ REGRAS:
         </div>
       </div>
 
-      {/* ✨ Key Points Guide - lado direito moderno */}
+      {/* ✨ Key Points Guide - Desktop apenas */}
       {showGuide && (
-        <div className="w-96 bg-black/20 backdrop-blur-xl border-l border-purple-500/20 flex flex-col">
+        <div className="hidden md:flex w-96 bg-black/20 backdrop-blur-xl border-l border-purple-500/20 flex-col">
           
           {/* Header moderno */}
           <div className="p-6 border-b border-purple-500/20">
@@ -750,10 +851,10 @@ REGRAS:
                 <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
                   <LightbulbIcon className="w-4 h-4 text-white" />
                 </div>
-                <div>
-                  <h2 className="text-lg font-bold text-white">Key Points</h2>
-                  <p className="text-xs text-purple-300/60">Pontos principais em tempo real</p>
-                </div>
+                                  <div>
+                    <h2 className="text-lg font-bold text-white">{t('keyPointsTitle')}</h2>
+                    <p className="text-xs text-purple-300/60">{t('keyPointsDesc')}</p>
+                  </div>
               </div>
               <button
                 onClick={() => setShowGuide(false)}
@@ -769,19 +870,19 @@ REGRAS:
             
             {/* Status */}
             <div className="mb-6 text-center">
-              {isAnalyzing ? (
-                <div className="flex items-center justify-center gap-2 text-purple-300">
-                  <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-sm">Analisando...</span>
-                </div>
-              ) : (
-                <div className="text-purple-400/80 text-sm">
-                  {keyPoints.length > 0 
-                    ? `${keyPoints.length} ponto${keyPoints.length > 1 ? 's' : ''} identificado${keyPoints.length > 1 ? 's' : ''}`
-                    : 'Aguardando conversa...'
-                  }
-                </div>
-              )}
+                              {isAnalyzing ? (
+                  <div className="flex items-center justify-center gap-2 text-purple-300">
+                    <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm">{t('analyzing')}</span>
+                  </div>
+                ) : (
+                  <div className="text-purple-400/80 text-sm">
+                    {keyPoints.length > 0 
+                      ? `${keyPoints.length} ${keyPoints.length > 1 ? t('pointsIdentifiedPlural') : t('pointsIdentified')}`
+                      : t('waitingConversation')
+                    }
+                  </div>
+                )}
             </div>
 
             {/* Key Points List */}
@@ -790,7 +891,7 @@ REGRAS:
                 <div className="text-center py-12">
                   <LightbulbIcon className="w-12 h-12 text-purple-400/40 mx-auto mb-4" />
                   <p className="text-purple-300/60 text-sm">
-                    Comece uma conversa para ver os pontos-chave aparecerrem automaticamente!
+                    {t('startConversation')}
                   </p>
                 </div>
               ) : (
@@ -810,7 +911,7 @@ REGRAS:
                         </p>
                         <div className="flex items-center gap-2 mt-2">
                           <span className={`text-xs px-2 py-1 rounded-full bg-white/10 backdrop-blur-sm`}>
-                            {point.relevance}
+                            {t(point.relevance)}
                           </span>
                           <ArrowUpIcon className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
                         </div>
@@ -822,6 +923,189 @@ REGRAS:
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📱 Menu Mobile Pop-up */}
+      {showMobileMenu && (
+        <div className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex">
+          <div className="w-80 bg-black/90 backdrop-blur-xl border-r border-purple-500/20 flex flex-col">
+            <div className="p-4 border-b border-purple-500/20">
+              <div className="flex items-center justify-between">
+                <h2 className="text-white font-semibold">{t('mobileMenu')}</h2>
+                <button
+                  onClick={() => setShowMobileMenu(false)}
+                  className="p-1 hover:bg-purple-700/50 rounded transition-colors"
+                >
+                  <XIcon className="w-4 h-4 text-purple-300" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Botões principais */}
+              <div className="space-y-2">
+                <button 
+                  onClick={() => {
+                    createNewChat();
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full p-3 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center gap-3 transition-colors"
+                >
+                  <PlusIcon className="w-5 h-5 text-purple-300" />
+                  <span className="text-purple-300">{t('newChat')}</span>
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    setShowChatList(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full p-3 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center gap-3 transition-colors"
+                >
+                  <MessageSquareIcon className="w-5 h-5 text-purple-300" />
+                  <span className="text-purple-300">{t('chatList')}</span>
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    setShowSettings(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full p-3 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center gap-3 transition-colors"
+                >
+                  <SettingsIcon className="w-5 h-5 text-purple-300" />
+                  <span className="text-purple-300">{t('settings')}</span>
+                </button>
+              </div>
+
+              {/* Idioma */}
+              <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/30">
+                <h3 className="text-white font-medium mb-3">{t('language')}</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setLanguage('pt')}
+                    className={`flex-1 p-2 rounded-lg transition-colors text-sm ${
+                      language === 'pt' 
+                        ? 'bg-purple-600/40 text-white' 
+                        : 'bg-purple-900/20 text-purple-300'
+                    }`}
+                  >
+                    {t('portuguese')}
+                  </button>
+                  <button
+                    onClick={() => setLanguage('en')}
+                    className={`flex-1 p-2 rounded-lg transition-colors text-sm ${
+                      language === 'en' 
+                        ? 'bg-purple-600/40 text-white' 
+                        : 'bg-purple-900/20 text-purple-300'
+                    }`}
+                  >
+                    {t('english')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Área clicável para fechar */}
+          <div 
+            className="flex-1"
+            onClick={() => setShowMobileMenu(false)}
+          />
+        </div>
+      )}
+
+      {/* 📱 Key Points Mobile Pop-up */}
+      {showMobileKeyPoints && (
+        <div className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end">
+          <div className="w-full h-3/4 bg-black/90 backdrop-blur-xl border-t border-purple-500/20 rounded-t-3xl flex flex-col">
+            
+            {/* Header */}
+            <div className="p-6 border-b border-purple-500/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
+                    <LightbulbIcon className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-white">{t('keyPointsTitle')}</h2>
+                    <p className="text-xs text-purple-300/60">{t('keyPointsDesc')}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowMobileKeyPoints(false)}
+                  className="p-2 hover:bg-purple-700/30 rounded-lg transition-colors"
+                >
+                  <XIcon className="w-4 h-4 text-purple-300" />
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo Key Points */}
+            <div className="flex-1 overflow-y-auto p-6">
+              
+              {/* Status */}
+              <div className="mb-6 text-center">
+                {isAnalyzing ? (
+                  <div className="flex items-center justify-center gap-2 text-purple-300">
+                    <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm">{t('analyzing')}</span>
+                  </div>
+                ) : (
+                  <div className="text-purple-400/80 text-sm">
+                    {keyPoints.length > 0 
+                      ? `${keyPoints.length} ${keyPoints.length > 1 ? t('pointsIdentifiedPlural') : t('pointsIdentified')}`
+                      : t('waitingConversation')
+                    }
+                  </div>
+                )}
+              </div>
+
+              {/* Key Points List */}
+              <div className="space-y-4">
+                {keyPoints.length === 0 && !isAnalyzing ? (
+                  <div className="text-center py-12">
+                    <LightbulbIcon className="w-12 h-12 text-purple-400/40 mx-auto mb-4" />
+                    <p className="text-purple-300/60 text-sm">
+                      {t('startConversation')}
+                    </p>
+                  </div>
+                ) : (
+                  keyPoints.map((point, index) => (
+                    <div
+                      key={index}
+                      className={`group relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-lg ${getRelevanceColor(point.relevance)}`}
+                      onClick={() => {
+                        scrollToMessage(point.messageId);
+                        setShowMobileKeyPoints(false);
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-relaxed font-medium">
+                            {point.text}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className={`text-xs px-2 py-1 rounded-full bg-white/10 backdrop-blur-sm`}>
+                              {t(point.relevance)}
+                            </span>
+                            <ArrowUpIcon className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Hover effect */}
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
