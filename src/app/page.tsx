@@ -308,7 +308,7 @@ export default function FabotChat() {
         .map((msg, index) => `[${index}] ${msg.role === 'user' ? 'Usuário' : 'IA'}: ${msg.content}`)
         .join('\n\n');
 
-      const analysisPrompt = `
+      const analysisPrompt = language === 'pt' ? `
 Analise esta conversa e extraia APENAS os pontos-chave mais importantes em tempo real.
 
 Conversa:
@@ -331,6 +331,31 @@ REGRAS:
 - Identifique o índice da mensagem [0, 1, 2...] que gerou cada ponto
 - Relevance: "high", "medium", "low"
 - Seja específico e conciso
+- RESPONDA EM PORTUGUÊS
+` : `
+Analyze this conversation and extract ONLY the most important key points in real time.
+
+Conversation:
+${conversationText}
+
+Return a JSON with this structure:
+{
+  "keyPoints": [
+    {
+      "text": "Main point identified",
+      "messageIndex": 0,
+      "relevance": "high"
+    }
+  ]
+}
+
+RULES:
+- Maximum 5 key points
+- Focus on the most important insights
+- Identify the message index [0, 1, 2...] that generated each point
+- Relevance: "high", "medium", "low"
+- Be specific and concise
+- RESPOND IN ENGLISH
 `;
 
       const response = await fetch('/api/chat', {
@@ -342,7 +367,9 @@ REGRAS:
           messages: [
             {
               role: 'system',
-              content: 'Você é um especialista em extrair pontos-chave de conversas. Sempre retorne JSON válido.'
+              content: language === 'pt' 
+                ? 'Você é um especialista em extrair pontos-chave de conversas. Sempre retorne JSON válido em português.'
+                : 'You are an expert in extracting key points from conversations. Always return valid JSON in English.'
             },
             {
               role: 'user', 
@@ -381,7 +408,7 @@ REGRAS:
       setIsAnalyzing(false);
       console.log('⏹️ Análise finalizada');
     }
-  }, [messages, updateCurrentChat]);
+  }, [messages, updateCurrentChat, language]);
 
   // 🚀 Trigger automático
   useEffect(() => {
@@ -392,6 +419,16 @@ REGRAS:
       }, 1000);
     }
   }, [messages.length, analyzeConversation]);
+
+  // 🌍 Re-analisar quando idioma muda (para conversas existentes)
+  useEffect(() => {
+    if (messages.length > 0 && keyPoints.length > 0) {
+      console.log('🌍 Idioma mudou, re-analisando conversa...');
+      setTimeout(() => {
+        analyzeConversation();
+      }, 500);
+    }
+  }, [language]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
