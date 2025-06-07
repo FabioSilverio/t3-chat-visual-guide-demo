@@ -67,7 +67,7 @@ export default function T3ChatDemo() {
     if (messages.length > 0) {
       analyzeConversation();
     }
-  }, [messages]);
+  }, [messages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const analyzeConversation = async () => {
     if (messages.length === 0) return;

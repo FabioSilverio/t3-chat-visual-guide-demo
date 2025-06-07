@@ -5,13 +5,18 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+interface Message {
+  role: string;
+  content: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = await request.json();
+    const { messages }: { messages: Message[] } = await request.json();
 
     // Criar um resumo da conversa para análise
     const conversationText = messages
-      .map((msg: any) => `${msg.role === 'user' ? 'Usuário' : 'IA'}: ${msg.content}`)
+      .map((msg) => `${msg.role === 'user' ? 'Usuário' : 'IA'}: ${msg.content}`)
       .join('\n\n');
 
     const analysisPrompt = `
@@ -69,7 +74,7 @@ Foque em extrair os pontos mais importantes e relevantes da conversa, similar ao
     try {
       const parsedAnalysis = JSON.parse(analysisResult || '{}');
       return NextResponse.json(parsedAnalysis);
-    } catch (parseError) {
+    } catch {
       // Se o JSON não for válido, retornar estrutura padrão
       return NextResponse.json({
         keyPoints: ['Conversa em andamento...'],
