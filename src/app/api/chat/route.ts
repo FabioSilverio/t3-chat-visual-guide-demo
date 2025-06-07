@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import Groq from 'groq-sdk';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
 
 interface Message {
@@ -10,7 +10,7 @@ interface Message {
   content: string;
 }
 
-interface OpenAIError {
+interface GroqError {
   status?: number;
   message?: string;
   code?: string;
@@ -20,10 +20,9 @@ interface OpenAIError {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('=== CHAT API DEBUG ===');
-    console.log('API Key present:', !!process.env.OPENAI_API_KEY);
-    console.log('API Key length:', process.env.OPENAI_API_KEY?.length || 0);
-    console.log('API Key starts with:', process.env.OPENAI_API_KEY?.substring(0, 10) || 'undefined');
+    console.log('=== GROQ API DEBUG ===');
+    console.log('API Key present:', !!process.env.GROQ_API_KEY);
+    console.log('API Key length:', process.env.GROQ_API_KEY?.length || 0);
     
     const { messages }: { messages: Message[] } = await request.json();
     console.log('Received messages count:', messages.length);
@@ -35,16 +34,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Calling OpenAI API...');
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+    console.log('Calling Groq API...');
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant', // Modelo gratuito e rápido
       messages: messages,
-      max_tokens: 500, // Reduzindo para economizar
+      max_tokens: 1000,
       temperature: 0.7,
-      stream: false,
     });
 
-    console.log('OpenAI response received successfully');
+    console.log('Groq response received successfully');
     console.log('Response usage:', response.usage);
 
     const aiMessage = response.choices[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.';
@@ -52,49 +50,50 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       message: aiMessage,
       usage: response.usage,
-      debug: 'Success'
+      model: 'llama-3.1-8b-instant',
+      debug: 'Success with Groq'
     });
 
   } catch (error: unknown) {
-    console.error('=== DETAILED ERROR ===');
+    console.error('=== DETAILED GROQ ERROR ===');
     console.error('Error type:', typeof error);
     
-    const openAIError = error as OpenAIError;
+    const groqError = error as GroqError;
     
-    console.error('Error name:', openAIError?.name);
-    console.error('Error message:', openAIError?.message);
-    console.error('Error code:', openAIError?.code);
-    console.error('Error status:', openAIError?.status);
+    console.error('Error name:', groqError?.name);
+    console.error('Error message:', groqError?.message);
+    console.error('Error code:', groqError?.code);
+    console.error('Error status:', groqError?.status);
     console.error('Full error:', error);
     
-    // Verificar tipos específicos de erro OpenAI
-    if (openAIError?.status === 429) {
-      console.error('Rate limit error details:', openAIError?.error);
+    // Verificar tipos específicos de erro Groq
+    if (groqError?.status === 429) {
+      console.error('Rate limit error details:', groqError?.error);
       return NextResponse.json(
         { 
-          error: `Rate limit excedido. Detalhes: ${openAIError?.message || 'Limite de requisições atingido'}`,
-          debug: 'Rate limit error',
-          details: openAIError?.error
+          error: `Rate limit Groq excedido. Detalhes: ${groqError?.message || 'Limite de requisições atingido'}`,
+          debug: 'Groq rate limit error',
+          details: groqError?.error
         },
         { status: 429 }
       );
     }
     
-    if (openAIError?.status === 401) {
+    if (groqError?.status === 401) {
       return NextResponse.json(
         { 
-          error: 'API key inválida ou não configurada',
-          debug: 'Auth error'
+          error: 'Groq API key inválida ou não configurada',
+          debug: 'Groq auth error'
         },
         { status: 401 }
       );
     }
 
-    if (openAIError?.status === 402) {
+    if (groqError?.status === 402) {
       return NextResponse.json(
         { 
-          error: 'Pagamento necessário - verifique billing OpenAI',
-          debug: 'Payment error'
+          error: 'Problema de billing Groq',
+          debug: 'Groq payment error'
         },
         { status: 402 }
       );
@@ -102,10 +101,10 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(
       { 
-        error: `Erro OpenAI: ${openAIError?.message || 'Erro desconhecido'}`,
-        debug: 'General error',
-        status: openAIError?.status,
-        code: openAIError?.code
+        error: `Erro Groq: ${groqError?.message || 'Erro desconhecido'}`,
+        debug: 'General Groq error',
+        status: groqError?.status,
+        code: groqError?.code
       },
       { status: 500 }
     );

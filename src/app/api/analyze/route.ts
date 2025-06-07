@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import Groq from 'groq-sdk';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
 
 interface Message {
@@ -53,8 +53,8 @@ Por favor, retorne um JSON com a seguinte estrutura:
 
 Foque em extrair os pontos mais importantes e relevantes da conversa, similar ao que o Google Docs faz com bullet points automáticos.`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
       messages: [
         {
           role: 'system',
