@@ -416,16 +416,21 @@ RULES:
     }
   }, [messages, updateCurrentChat, language, isAnalyzing]);
 
-  // 🚀 Trigger automático - quando há nova mensagem
+  // 🚀 Trigger automático - IMEDIATO para respostas da IA
   useEffect(() => {
     if (messages.length > 0 && !isAnalyzing) {
       const lastMessage = messages[messages.length - 1];
-      // Analisa após resposta da IA ou quando há pelo menos 2 mensagens
-      if (lastMessage.role === 'assistant' || messages.length >= 2) {
-        console.log('🤖 Nova mensagem detectada, analisando...');
+      // Análise IMEDIATA após resposta da IA
+      if (lastMessage.role === 'assistant') {
+        console.log('🤖 RESPOSTA DA IA - ANÁLISE IMEDIATA!');
+        analyzeConversation(); // SEM DELAY!
+      }
+      // Para outras mensagens, pequeno delay
+      else if (messages.length >= 2) {
+        console.log('📝 Nova mensagem do usuário, análise rápida...');
         const timeoutId = setTimeout(() => {
           analyzeConversation();
-        }, 500); // Reduced delay for faster response
+        }, 200);
         
         return () => clearTimeout(timeoutId);
       }
@@ -435,18 +440,15 @@ RULES:
   // 🌍 Re-analisar quando idioma muda (se há mensagens)
   useEffect(() => {
     if (messages.length >= 2 && !isAnalyzing) {
-      console.log('🌍 Idioma mudou, re-analisando conversa...');
-      const timeoutId = setTimeout(() => {
-        analyzeConversation();
-      }, 300); // Faster re-analysis for language change
-      
-      return () => clearTimeout(timeoutId);
+      console.log('🌍 Idioma mudou, re-analisando IMEDIATAMENTE...');
+      analyzeConversation(); // SEM DELAY para mudança de idioma
     }
   }, [language]); // Intencionalmente não inclui outras dependências para evitar loops
 
   // 🔄 Manual analysis trigger for immediate response
   const triggerAnalysis = useCallback(() => {
     if (messages.length > 0 && !isAnalyzing) {
+      console.log('🔥 TRIGGER MANUAL EXECUTADO!');
       analyzeConversation();
     }
   }, [messages.length, isAnalyzing, analyzeConversation]);
@@ -495,14 +497,17 @@ RULES:
           content: data.message,
           timestamp: new Date(),
         };
-        console.log('📥 RESPOSTA RECEBIDA');
+        console.log('📥 RESPOSTA RECEBIDA - DISPARANDO ANÁLISE!');
         const finalMessages = [...newMessages, assistantMessage];
         setMessages(finalMessages);
         
-        // Trigger immediate analysis after AI response
+        // ANÁLISE IMEDIATA após resposta da IA
         setTimeout(() => {
-          triggerAnalysis();
-        }, 200);
+          console.log('🚀 TRIGGER MANUAL IMEDIATO!');
+          if (!isAnalyzing) {
+            analyzeConversation();
+          }
+        }, 100); // Mínimo delay apenas para garantir que messages foi atualizado
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Falha na resposta da API');
