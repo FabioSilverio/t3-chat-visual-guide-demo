@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { 
   SendIcon, 
   BotIcon, 
@@ -50,6 +50,7 @@ export default function FabotChat() {
     nextSteps: ""
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisVersion, setAnalysisVersion] = useState(0);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -62,24 +63,14 @@ export default function FabotChat() {
     scrollToBottom();
   }, [messages]);
 
-  // 🔥 Análise automática forçada após cada mudança
-  useEffect(() => {
-    const analyzeWithDelay = async () => {
-      if (messages.length > 0) {
-        // Pequeno delay para garantir que a última mensagem foi processada
-        setTimeout(() => {
-          analyzeConversation();
-        }, 500);
-      }
-    };
+  // 🔥 Função de análise melhorada
+  const analyzeConversation = useCallback(async () => {
+    if (messages.length === 0) {
+      console.log('🚫 Nenhuma mensagem para analisar');
+      return;
+    }
     
-    analyzeWithDelay();
-  }, [messages]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const analyzeConversation = async () => {
-    if (messages.length === 0) return;
-    
-    console.log('🔄 Iniciando análise da conversa...', { totalMessages: messages.length });
+    console.log('🔄 INICIANDO ANÁLISE - Total de mensagens:', messages.length);
     setIsAnalyzing(true);
     
     try {
@@ -91,20 +82,42 @@ export default function FabotChat() {
         body: JSON.stringify({ messages }),
       });
 
+      console.log('📡 Response status:', response.status);
+      
       if (response.ok) {
         const analysisResult = await response.json();
-        console.log('✅ Visual Guide atualizado com sucesso:', analysisResult);
+        console.log('✅ ANÁLISE RECEBIDA:', analysisResult);
         setAnalysis(analysisResult);
+        setAnalysisVersion(prev => prev + 1);
+        console.log('🎯 Visual Guide ATUALIZADO! Versão:', analysisVersion + 1);
       } else {
-        console.error('❌ Erro na análise:', response.status, response.statusText);
+        console.error('❌ Erro na resposta da API:', response.status);
         const errorText = await response.text();
-        console.error('Detalhes do erro:', errorText);
+        console.error('📄 Detalhes do erro:', errorText);
       }
     } catch (error) {
-      console.error('❌ Erro ao analisar conversa:', error);
+      console.error('💥 Erro na requisição de análise:', error);
     } finally {
       setIsAnalyzing(false);
+      console.log('⏹️ Análise finalizada');
     }
+  }, [messages, analysisVersion]);
+
+  // 🚀 Trigger automático melhorado
+  useEffect(() => {
+    console.log('🔄 useEffect triggered - messages length:', messages.length);
+    
+    if (messages.length > 0) {
+      // Análise imediata
+      console.log('⚡ Iniciando análise imediata...');
+      analyzeConversation();
+    }
+  }, [messages.length, analyzeConversation]);
+
+  // 🔄 Análise manual para debug
+  const forceAnalyze = () => {
+    console.log('🔧 Análise manual forçada');
+    analyzeConversation();
   };
 
   const sendMessage = async (e: React.FormEvent) => {
@@ -118,8 +131,12 @@ export default function FabotChat() {
       timestamp: new Date(),
     };
 
-    console.log('📤 Enviando mensagem:', userMessage.content);
-    setMessages(prev => [...prev, userMessage]);
+    console.log('📤 ENVIANDO MENSAGEM:', userMessage.content);
+    setMessages(prev => {
+      const newMessages = [...prev, userMessage];
+      console.log('📝 Total de mensagens após adicionar usuário:', newMessages.length);
+      return newMessages;
+    });
     setInput("");
     setIsLoading(true);
 
@@ -145,8 +162,12 @@ export default function FabotChat() {
           content: data.message,
           timestamp: new Date(),
         };
-        console.log('📥 Resposta recebida, atualizando mensagens...');
-        setMessages(prev => [...prev, assistantMessage]);
+        console.log('📥 RESPOSTA RECEBIDA, adicionando aos messages...');
+        setMessages(prev => {
+          const newMessages = [...prev, assistantMessage];
+          console.log('📝 Total de mensagens após resposta IA:', newMessages.length);
+          return newMessages;
+        });
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Falha na resposta da API');
@@ -363,12 +384,21 @@ export default function FabotChat() {
                   <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
                 )}
               </div>
-              <button
-                onClick={() => setShowGuide(false)}
-                className="p-1 hover:bg-purple-700/50 rounded transition-colors"
-              >
-                <XIcon className="w-4 h-4 text-purple-300" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={forceAnalyze}
+                  className="px-2 py-1 text-xs bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 rounded transition-colors"
+                  title="Forçar análise"
+                >
+                  🔄
+                </button>
+                <button
+                  onClick={() => setShowGuide(false)}
+                  className="p-1 hover:bg-purple-700/50 rounded transition-colors"
+                >
+                  <XIcon className="w-4 h-4 text-purple-300" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -384,12 +414,25 @@ export default function FabotChat() {
                     Analisando conversa...
                   </span>
                 ) : messages.length > 0 ? (
-                  `${messages.length} mensagens analisadas`
+                  <>
+                    <span>{messages.length} mensagens analisadas</span>
+                    <br />
+                    <span className="text-xs text-purple-500">v{analysisVersion}</span>
+                  </>
                 ) : (
                   'Aguardando conversa...'
                 )}
               </p>
             </div>
+
+            {/* Debug Info */}
+            {messages.length > 0 && (
+              <div className="bg-gray-800/30 rounded-lg p-2 border border-gray-600/30">
+                <p className="text-xs text-gray-400">
+                  🔍 Debug: {analysis.keyPoints.length} pontos, {analysis.questions.length} perguntas
+                </p>
+              </div>
+            )}
 
             {/* Resumo */}
             {analysis.summary && (
@@ -410,6 +453,7 @@ export default function FabotChat() {
                 <div className="flex items-center gap-2 mb-3">
                   <LightbulbIcon className="w-3 h-3 text-yellow-400" />
                   <span className="text-xs font-medium text-yellow-300">Pontos Principais</span>
+                  <span className="text-xs text-yellow-500">({analysis.keyPoints.length})</span>
                 </div>
                 <div className="space-y-2">
                   {analysis.keyPoints.slice(0, 4).map((point, index) => (
@@ -433,6 +477,7 @@ export default function FabotChat() {
                 <div className="flex items-center gap-2 mb-3">
                   <HelpCircleIcon className="w-3 h-3 text-purple-400" />
                   <span className="text-xs font-medium text-purple-300">Sugestões</span>
+                  <span className="text-xs text-purple-500">({analysis.questions.length})</span>
                 </div>
                 <div className="space-y-2">
                   {analysis.questions.slice(0, 3).map((question, index) => (
@@ -454,6 +499,7 @@ export default function FabotChat() {
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircleIcon className="w-3 h-3 text-green-400" />
                   <span className="text-xs font-medium text-green-300">Próximas Ações</span>
+                  <span className="text-xs text-green-500">({analysis.actionItems.length})</span>
                 </div>
                 <div className="space-y-2">
                   {analysis.actionItems.slice(0, 3).map((item, index) => (
