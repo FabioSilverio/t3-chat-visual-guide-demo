@@ -305,13 +305,6 @@ export default function FabotChat() {
       console.log('⏳ Análise já em andamento, ignorando...');
       return;
     }
-
-    // Verificar se a última mensagem é da IA
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage.role !== 'assistant') {
-      console.log('👤 Última mensagem é do usuário, aguardando resposta da IA...');
-      return;
-    }
     
     console.log('🔄 ANALISANDO KEY POINTS - Total de mensagens:', messages.length);
     setIsAnalyzing(true);
@@ -423,38 +416,40 @@ RULES:
     }
   }, [messages, updateCurrentChat, language, isAnalyzing]);
 
-  // 🚀 Trigger automático - APENAS quando há nova mensagem da IA
+  // 🚀 Trigger automático - quando há nova mensagem
   useEffect(() => {
     if (messages.length > 0 && !isAnalyzing) {
       const lastMessage = messages[messages.length - 1];
-      // Só analisa se a última mensagem for da IA (assistant)
-      if (lastMessage.role === 'assistant') {
-        console.log('🤖 Nova resposta da IA detectada, analisando...');
+      // Analisa após resposta da IA ou quando há pelo menos 2 mensagens
+      if (lastMessage.role === 'assistant' || messages.length >= 2) {
+        console.log('🤖 Nova mensagem detectada, analisando...');
         const timeoutId = setTimeout(() => {
           analyzeConversation();
-        }, 1000);
+        }, 500); // Reduced delay for faster response
         
-        // Cleanup timeout se componente desmontar ou dependências mudarem
         return () => clearTimeout(timeoutId);
       }
     }
   }, [messages.length, isAnalyzing, analyzeConversation]);
 
-  // 🌍 Re-analisar quando idioma muda (APENAS se já existem key points)
+  // 🌍 Re-analisar quando idioma muda (se há mensagens)
   useEffect(() => {
-    if (messages.length > 0 && keyPoints.length > 0 && !isAnalyzing) {
-      const lastMessage = messages[messages.length - 1];
-      // Só re-analisa se tem conversa completa (última mensagem da IA)
-      if (lastMessage.role === 'assistant') {
-        console.log('🌍 Idioma mudou, re-analisando conversa existente...');
-        const timeoutId = setTimeout(() => {
-          analyzeConversation();
-        }, 800);
-        
-        return () => clearTimeout(timeoutId);
-      }
+    if (messages.length >= 2 && !isAnalyzing) {
+      console.log('🌍 Idioma mudou, re-analisando conversa...');
+      const timeoutId = setTimeout(() => {
+        analyzeConversation();
+      }, 300); // Faster re-analysis for language change
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [language]); // Intencionalmente não inclui outras dependências para evitar loops
+
+  // 🔄 Manual analysis trigger for immediate response
+  const triggerAnalysis = useCallback(() => {
+    if (messages.length > 0 && !isAnalyzing) {
+      analyzeConversation();
+    }
+  }, [messages.length, isAnalyzing, analyzeConversation]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -503,6 +498,11 @@ RULES:
         console.log('📥 RESPOSTA RECEBIDA');
         const finalMessages = [...newMessages, assistantMessage];
         setMessages(finalMessages);
+        
+        // Trigger immediate analysis after AI response
+        setTimeout(() => {
+          triggerAnalysis();
+        }, 200);
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Falha na resposta da API');
