@@ -10,6 +10,14 @@ interface Message {
   content: string;
 }
 
+interface OpenAIError {
+  status?: number;
+  message?: string;
+  code?: string;
+  error?: any;
+  name?: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('=== CHAT API DEBUG ===');
@@ -47,29 +55,32 @@ export async function POST(request: NextRequest) {
       debug: 'Success'
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('=== DETAILED ERROR ===');
     console.error('Error type:', typeof error);
-    console.error('Error name:', error?.name);
-    console.error('Error message:', error?.message);
-    console.error('Error code:', error?.code);
-    console.error('Error status:', error?.status);
+    
+    const openAIError = error as OpenAIError;
+    
+    console.error('Error name:', openAIError?.name);
+    console.error('Error message:', openAIError?.message);
+    console.error('Error code:', openAIError?.code);
+    console.error('Error status:', openAIError?.status);
     console.error('Full error:', error);
     
     // Verificar tipos específicos de erro OpenAI
-    if (error?.status === 429) {
-      console.error('Rate limit error details:', error?.error);
+    if (openAIError?.status === 429) {
+      console.error('Rate limit error details:', openAIError?.error);
       return NextResponse.json(
         { 
-          error: `Rate limit excedido. Detalhes: ${error?.message}`,
+          error: `Rate limit excedido. Detalhes: ${openAIError?.message || 'Limite de requisições atingido'}`,
           debug: 'Rate limit error',
-          details: error?.error
+          details: openAIError?.error
         },
         { status: 429 }
       );
     }
     
-    if (error?.status === 401) {
+    if (openAIError?.status === 401) {
       return NextResponse.json(
         { 
           error: 'API key inválida ou não configurada',
@@ -79,7 +90,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (error?.status === 402) {
+    if (openAIError?.status === 402) {
       return NextResponse.json(
         { 
           error: 'Pagamento necessário - verifique billing OpenAI',
@@ -91,10 +102,10 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(
       { 
-        error: `Erro OpenAI: ${error?.message || 'Erro desconhecido'}`,
+        error: `Erro OpenAI: ${openAIError?.message || 'Erro desconhecido'}`,
         debug: 'General error',
-        status: error?.status,
-        code: error?.code
+        status: openAIError?.status,
+        code: openAIError?.code
       },
       { status: 500 }
     );
