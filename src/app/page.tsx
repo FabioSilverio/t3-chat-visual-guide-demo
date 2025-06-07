@@ -698,7 +698,7 @@ RULES:
       <div className="flex-1 flex flex-col">
         
         {/* Header com estilo Libra */}
-        <header className="bg-black/40 backdrop-blur-xl border-b border-purple-500/20 p-4">
+        <header className="bg-black/40 backdrop-blur-xl border-b border-purple-500/20 p-4 md:p-4 p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {/* Menu mobile */}
@@ -709,14 +709,14 @@ RULES:
                 <MenuIcon className="w-5 h-5 text-purple-300" />
               </button>
               
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  FABOT
-                </h1>
-                <p className="text-sm text-purple-300/80">
-                  {getCurrentChatName()}
-                </p>
-              </div>
+                              <div>
+                  <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                    FABOT
+                  </h1>
+                  <p className="text-xs md:text-sm text-purple-300/80">
+                    {getCurrentChatName()}
+                  </p>
+                </div>
             </div>
             
             <div className="flex items-center gap-3">
@@ -732,7 +732,7 @@ RULES:
               {/* Key Points mobile */}
               <button
                 onClick={() => setShowMobileKeyPoints(true)}
-                className="md:hidden px-3 py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 rounded-lg transition-colors text-sm border border-purple-500/30"
+                className="md:hidden px-2 py-1.5 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 rounded-lg transition-colors text-xs border border-purple-500/30"
               >
                 {t('keyPoints')}
               </button>
@@ -756,7 +756,7 @@ RULES:
         </header>
 
         {/* Área de mensagens com estilo Libra */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
           {messages.length === 0 && (
             <div className="text-center py-20">
               <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-pink-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
@@ -852,7 +852,7 @@ RULES:
         </div>
 
         {/* Input area com estilo Libra */}
-        <div className="border-t border-purple-500/20 bg-black/20 backdrop-blur-xl p-6">
+        <div className="border-t border-purple-500/20 bg-black/20 backdrop-blur-xl p-3 md:p-6">
           <form onSubmit={sendMessage} className="flex gap-4 items-end max-w-4xl mx-auto">
             <div className="flex-1">
               <textarea
@@ -877,57 +877,61 @@ RULES:
         </div>
       </div>
 
-      {/* ✨ Key Points Guide - Desktop apenas */}
+            {/* ✨ Key Points Guide - Desktop apenas */}
       {showGuide && (
-        <div className="hidden md:flex w-96 bg-black/20 backdrop-blur-xl border-l border-purple-500/20 flex-col">
+        <div className="hidden md:flex w-96 bg-black/10 backdrop-blur-2xl border-l border-white/10 flex-col">
           
           {/* Header moderno */}
-          <div className="p-6 border-b border-purple-500/20">
+          <div className="p-6 border-b border-white/10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
-                  <LightbulbIcon className="w-4 h-4 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/30 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-center shadow-lg">
+                  <LightbulbIcon className="w-5 h-5 text-white" />
                 </div>
-                                  <div>
-                    <h2 className="text-lg font-bold text-white">{t('keyPointsTitle')}</h2>
-                    <p className="text-xs text-purple-300/60">{t('keyPointsDesc')}</p>
-                  </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">{t('keyPointsTitle')}</h2>
+                  <p className="text-xs text-white/60">{t('keyPointsDesc')}</p>
+                </div>
               </div>
               <button
                 onClick={() => setShowGuide(false)}
-                className="p-2 hover:bg-purple-700/30 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/10 rounded-xl transition-all duration-300 backdrop-blur-sm"
               >
-                <XIcon className="w-4 h-4 text-purple-300" />
+                <XIcon className="w-4 h-4 text-white/70" />
               </button>
             </div>
           </div>
 
-          {/* Conteúdo dos Key Points */}
+                    {/* Conteúdo dos Key Points */}
           <div className="flex-1 overflow-y-auto p-6">
             
             {/* Status */}
             <div className="mb-6 text-center">
-                              {isAnalyzing ? (
-                  <div className="flex items-center justify-center gap-2 text-purple-300">
-                    <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-sm">{t('analyzing')}</span>
-                  </div>
-                ) : (
-                  <div className="text-purple-400/80 text-sm">
+              {isAnalyzing ? (
+                <div className="flex items-center justify-center gap-3 p-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span className="text-sm text-white/80 font-medium">{t('analyzing')}</span>
+                </div>
+              ) : (
+                <div className="p-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+                  <span className="text-white/70 text-sm font-medium">
                     {keyPoints.length > 0 
                       ? `${keyPoints.length} ${keyPoints.length > 1 ? t('pointsIdentifiedPlural') : t('pointsIdentified')}`
                       : t('waitingConversation')
                     }
-                  </div>
-                )}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Key Points List */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {keyPoints.length === 0 && !isAnalyzing ? (
-                <div className="text-center py-12">
-                  <LightbulbIcon className="w-12 h-12 text-purple-400/40 mx-auto mb-4" />
-                  <p className="text-purple-300/60 text-sm">
+                <div className="text-center py-8 p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl">
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-xl border border-white/20 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <LightbulbIcon className="w-8 h-8 text-white/60" />
+                  </div>
+                  <p className="text-white/60 text-sm font-medium">
                     {t('startConversation')}
                   </p>
                 </div>
@@ -935,28 +939,37 @@ RULES:
                 keyPoints.map((point, index) => (
                   <div
                     key={index}
-                    className={`group relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-lg ${getRelevanceColor(point.relevance)}`}
+                    className="group relative p-5 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl cursor-pointer transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 hover:border-white/20 hover:shadow-2xl hover:shadow-purple-500/10 animate-in slide-in-from-bottom-4 fade-in"
+                    style={{ animationDelay: `${index * 100}ms` }}
                     onClick={() => scrollToMessage(point.messageId)}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-500/30 to-pink-500/30 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-center text-xs font-bold text-white shadow-lg">
                         {index + 1}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-relaxed font-medium">
+                        <p className="text-sm leading-relaxed font-medium text-white/90 mb-3">
                           {point.text}
                         </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className={`text-xs px-2 py-1 rounded-full bg-white/10 backdrop-blur-sm`}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/70 font-medium">
                             {t(point.relevance)}
                           </span>
-                          <ArrowUpIcon className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                          <div className="flex items-center gap-1 text-white/50 group-hover:text-white/80 transition-colors">
+                            <ArrowUpIcon className="w-3 h-3" />
+                            <span className="text-xs font-medium">Go to message</span>
+                          </div>
                         </div>
                       </div>
                     </div>
                     
-                    {/* Hover effect */}
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                    {/* Glass effect overlay */}
+                    <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none"></div>
+                    
+                    {/* Shimmer effect */}
+                    <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
+                      <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                    </div>
                   </div>
                 ))
               )}
@@ -1057,56 +1070,60 @@ RULES:
 
       {/* 📱 Key Points Mobile Pop-up */}
       {showMobileKeyPoints && (
-        <div className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end">
-          <div className="w-full h-3/4 bg-black/90 backdrop-blur-xl border-t border-purple-500/20 rounded-t-3xl flex flex-col">
+        <div className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end">
+          <div className="w-full h-3/4 bg-black/20 backdrop-blur-2xl border-t border-white/10 rounded-t-3xl flex flex-col shadow-2xl">
             
             {/* Header */}
-            <div className="p-6 border-b border-purple-500/20">
+            <div className="p-4 border-b border-white/10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
-                    <LightbulbIcon className="w-4 h-4 text-white" />
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/30 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-center shadow-lg">
+                    <LightbulbIcon className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-white">{t('keyPointsTitle')}</h2>
-                    <p className="text-xs text-purple-300/60">{t('keyPointsDesc')}</p>
+                    <p className="text-xs text-white/60">{t('keyPointsDesc')}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowMobileKeyPoints(false)}
-                  className="p-2 hover:bg-purple-700/30 rounded-lg transition-colors"
+                  className="p-2 hover:bg-white/10 rounded-xl transition-all duration-300 backdrop-blur-sm"
                 >
-                  <XIcon className="w-4 h-4 text-purple-300" />
+                  <XIcon className="w-5 h-5 text-white/70" />
                 </button>
               </div>
             </div>
 
             {/* Conteúdo Key Points */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4">
               
               {/* Status */}
-              <div className="mb-6 text-center">
+              <div className="mb-4 text-center">
                 {isAnalyzing ? (
-                  <div className="flex items-center justify-center gap-2 text-purple-300">
-                    <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-sm">{t('analyzing')}</span>
+                  <div className="flex items-center justify-center gap-3 p-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span className="text-sm text-white/80 font-medium">{t('analyzing')}</span>
                   </div>
                 ) : (
-                  <div className="text-purple-400/80 text-sm">
-                    {keyPoints.length > 0 
-                      ? `${keyPoints.length} ${keyPoints.length > 1 ? t('pointsIdentifiedPlural') : t('pointsIdentified')}`
-                      : t('waitingConversation')
-                    }
+                  <div className="p-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+                    <span className="text-white/70 text-sm font-medium">
+                      {keyPoints.length > 0 
+                        ? `${keyPoints.length} ${keyPoints.length > 1 ? t('pointsIdentifiedPlural') : t('pointsIdentified')}`
+                        : t('waitingConversation')
+                      }
+                    </span>
                   </div>
                 )}
               </div>
 
               {/* Key Points List */}
-              <div className="space-y-4">
+              <div className="space-y-3 pb-4">
                 {keyPoints.length === 0 && !isAnalyzing ? (
-                  <div className="text-center py-12">
-                    <LightbulbIcon className="w-12 h-12 text-purple-400/40 mx-auto mb-4" />
-                    <p className="text-purple-300/60 text-sm">
+                  <div className="text-center py-8 p-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl">
+                    <div className="w-14 h-14 bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-xl border border-white/20 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                      <LightbulbIcon className="w-7 h-7 text-white/60" />
+                    </div>
+                    <p className="text-white/60 text-sm font-medium">
                       {t('startConversation')}
                     </p>
                   </div>
@@ -1114,31 +1131,40 @@ RULES:
                   keyPoints.map((point, index) => (
                     <div
                       key={index}
-                      className={`group relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-lg ${getRelevanceColor(point.relevance)}`}
+                      className="group relative p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl cursor-pointer transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 hover:border-white/20 hover:shadow-xl hover:shadow-purple-500/10 animate-in slide-in-from-bottom-4 fade-in"
+                      style={{ animationDelay: `${index * 100}ms` }}
                       onClick={() => {
                         scrollToMessage(point.messageId);
                         setShowMobileKeyPoints(false);
                       }}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">
+                        <div className="flex-shrink-0 w-7 h-7 bg-gradient-to-br from-purple-500/30 to-pink-500/30 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-center text-xs font-bold text-white shadow-lg">
                           {index + 1}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm leading-relaxed font-medium">
+                          <p className="text-sm leading-relaxed font-medium text-white/90 mb-2">
                             {point.text}
                           </p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className={`text-xs px-2 py-1 rounded-full bg-white/10 backdrop-blur-sm`}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs px-2 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/70 font-medium">
                               {t(point.relevance)}
                             </span>
-                            <ArrowUpIcon className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                            <div className="flex items-center gap-1 text-white/50 group-hover:text-white/80 transition-colors">
+                              <ArrowUpIcon className="w-3 h-3" />
+                              <span className="text-xs">Tap</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                       
-                      {/* Hover effect */}
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                      {/* Glass effect overlay */}
+                      <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none"></div>
+                      
+                      {/* Shimmer effect */}
+                      <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
+                        <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                      </div>
                     </div>
                   ))
                 )}
