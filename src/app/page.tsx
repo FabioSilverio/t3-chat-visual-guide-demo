@@ -7,17 +7,12 @@ import {
   UserIcon, 
   SparklesIcon,
   LightbulbIcon,
-  CheckCircleIcon,
-  HelpCircleIcon,
-  MessageSquareIcon,
-  TrendingUpIcon,
   PlusIcon,
   SettingsIcon,
   XIcon,
   TrashIcon,
-  EditIcon,
-  ChevronDownIcon,
-  ChevronUpIcon
+  MessageSquareIcon,
+  ArrowUpIcon
 } from "lucide-react";
 
 interface Message {
@@ -25,6 +20,12 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+}
+
+interface KeyPoint {
+  text: string;
+  messageId: string;
+  relevance: "high" | "medium" | "low";
 }
 
 interface ConversationAnalysis {
@@ -45,6 +46,7 @@ interface Chat {
   name: string;
   messages: Message[];
   analysis: ConversationAnalysis;
+  keyPoints: KeyPoint[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,16 +60,8 @@ export default function FabotChat() {
   const [showGuide, setShowGuide] = useState(true);
   const [showChatList, setShowChatList] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [analysis, setAnalysis] = useState<ConversationAnalysis>({
-    keyPoints: [],
-    topics: [],
-    actionItems: [],
-    questions: [],
-    summary: "",
-    nextSteps: ""
-  });
+  const [keyPoints, setKeyPoints] = useState<KeyPoint[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisVersion, setAnalysisVersion] = useState(0);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -83,6 +77,7 @@ export default function FabotChat() {
           ...chat,
           createdAt: new Date(chat.createdAt),
           updatedAt: new Date(chat.updatedAt),
+          keyPoints: chat.keyPoints || [],
           messages: chat.messages.map((msg: any) => ({
             ...msg,
             timestamp: new Date(msg.timestamp)
@@ -95,7 +90,7 @@ export default function FabotChat() {
           const currentChat = parsedChats.find((c: Chat) => c.id === savedCurrentChatId);
           if (currentChat) {
             setMessages(currentChat.messages);
-            setAnalysis(currentChat.analysis);
+            setKeyPoints(currentChat.keyPoints || []);
           }
         }
       } catch (error) {
@@ -128,6 +123,7 @@ export default function FabotChat() {
         summary: "",
         nextSteps: ""
       },
+      keyPoints: [],
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -136,7 +132,7 @@ export default function FabotChat() {
     setChats(updatedChats);
     setCurrentChatId(newChat.id);
     setMessages([]);
-    setAnalysis(newChat.analysis);
+    setKeyPoints([]);
     setShowChatList(false);
     saveToStorage(updatedChats, newChat.id);
     
@@ -149,7 +145,7 @@ export default function FabotChat() {
     if (chat) {
       setCurrentChatId(chatId);
       setMessages(chat.messages);
-      setAnalysis(chat.analysis);
+      setKeyPoints(chat.keyPoints || []);
       setShowChatList(false);
       saveToStorage(chats, chatId);
       console.log('🔄 Trocando para chat:', chat.name);
@@ -166,19 +162,12 @@ export default function FabotChat() {
         const newCurrentChat = updatedChats[updatedChats.length - 1];
         setCurrentChatId(newCurrentChat.id);
         setMessages(newCurrentChat.messages);
-        setAnalysis(newCurrentChat.analysis);
+        setKeyPoints(newCurrentChat.keyPoints || []);
         saveToStorage(updatedChats, newCurrentChat.id);
       } else {
         setCurrentChatId(null);
         setMessages([]);
-        setAnalysis({
-          keyPoints: [],
-          topics: [],
-          actionItems: [],
-          questions: [],
-          summary: "",
-          nextSteps: ""
-        });
+        setKeyPoints([]);
         saveToStorage(updatedChats, null);
       }
     } else {
@@ -189,7 +178,7 @@ export default function FabotChat() {
   };
 
   // 📝 Atualizar chat atual
-  const updateCurrentChat = useCallback((newMessages: Message[], newAnalysis: ConversationAnalysis) => {
+  const updateCurrentChat = useCallback((newMessages: Message[], newKeyPoints: KeyPoint[]) => {
     if (!currentChatId) return;
 
     const updatedChats = chats.map(chat => {
@@ -197,7 +186,7 @@ export default function FabotChat() {
         return {
           ...chat,
           messages: newMessages,
-          analysis: newAnalysis,
+          keyPoints: newKeyPoints,
           updatedAt: new Date(),
           name: newMessages.length > 0 && chat.name.startsWith('Chat') 
             ? newMessages[0].content.substring(0, 30) + '...'
@@ -215,66 +204,121 @@ export default function FabotChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // 🎯 Scroll para mensagem específica
+  const scrollToMessage = (messageId: string) => {
+    const messageElement = document.getElementById(`message-${messageId}`);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      messageElement.classList.add('highlight-message');
+      setTimeout(() => {
+        messageElement.classList.remove('highlight-message');
+      }, 2000);
+    }
+  };
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // 🔥 Função de análise melhorada
+  // 🔥 Análise focada em key points
   const analyzeConversation = useCallback(async () => {
     if (messages.length === 0) {
       console.log('🚫 Nenhuma mensagem para analisar');
       return;
     }
     
-    console.log('🔄 INICIANDO ANÁLISE - Total de mensagens:', messages.length);
+    console.log('🔄 ANALISANDO KEY POINTS - Total de mensagens:', messages.length);
     setIsAnalyzing(true);
     
     try {
-      const response = await fetch('/api/analyze', {
+      const conversationText = messages
+        .map((msg, index) => `[${index}] ${msg.role === 'user' ? 'Usuário' : 'IA'}: ${msg.content}`)
+        .join('\n\n');
+
+      const analysisPrompt = `
+Analise esta conversa e extraia APENAS os pontos-chave mais importantes em tempo real.
+
+Conversa:
+${conversationText}
+
+Retorne um JSON com esta estrutura:
+{
+  "keyPoints": [
+    {
+      "text": "Ponto principal identificado",
+      "messageIndex": 0,
+      "relevance": "high"
+    }
+  ]
+}
+
+REGRAS:
+- Máximo 5 key points
+- Foque nos insights mais importantes
+- Identifique o índice da mensagem [0, 1, 2...] que gerou cada ponto
+- Relevance: "high", "medium", "low"
+- Seja específico e conciso
+`;
+
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'system',
+              content: 'Você é um especialista em extrair pontos-chave de conversas. Sempre retorne JSON válido.'
+            },
+            {
+              role: 'user', 
+              content: analysisPrompt
+            }
+          ]
+        }),
       });
 
-      console.log('📡 Response status:', response.status);
-      
       if (response.ok) {
-        const analysisResult = await response.json();
-        console.log('✅ ANÁLISE RECEBIDA:', analysisResult);
-        setAnalysis(analysisResult);
-        setAnalysisVersion(prev => prev + 1);
-        updateCurrentChat(messages, analysisResult);
-        console.log('🎯 Visual Guide ATUALIZADO! Versão:', analysisVersion + 1);
+        const data = await response.json();
+        console.log('📡 Resposta raw da análise:', data.message);
+        
+        try {
+          const analysisResult = JSON.parse(data.message);
+          console.log('✅ ANÁLISE PARSEADA:', analysisResult);
+          
+          const newKeyPoints: KeyPoint[] = analysisResult.keyPoints?.map((kp: any) => ({
+            text: kp.text,
+            messageId: messages[kp.messageIndex]?.id || '',
+            relevance: kp.relevance || 'medium'
+          })) || [];
+
+          console.log('🎯 KEY POINTS EXTRAÍDOS:', newKeyPoints);
+          setKeyPoints(newKeyPoints);
+          updateCurrentChat(messages, newKeyPoints);
+        } catch (parseError) {
+          console.error('❌ Erro ao fazer parse do JSON:', parseError);
+        }
       } else {
         console.error('❌ Erro na resposta da API:', response.status);
-        const errorText = await response.text();
-        console.error('📄 Detalhes do erro:', errorText);
       }
     } catch (error) {
-      console.error('💥 Erro na requisição de análise:', error);
+      console.error('💥 Erro na análise:', error);
     } finally {
       setIsAnalyzing(false);
       console.log('⏹️ Análise finalizada');
     }
-  }, [messages, analysisVersion, updateCurrentChat]);
+  }, [messages, updateCurrentChat]);
 
-  // 🚀 Trigger automático melhorado
+  // 🚀 Trigger automático
   useEffect(() => {
-    console.log('🔄 useEffect triggered - messages length:', messages.length);
-    
     if (messages.length > 0) {
-      console.log('⚡ Iniciando análise imediata...');
-      analyzeConversation();
+      // Delay para garantir que a mensagem foi renderizada
+      setTimeout(() => {
+        analyzeConversation();
+      }, 1000);
     }
   }, [messages.length, analyzeConversation]);
-
-  // 🔄 Análise manual para debug
-  const forceAnalyze = () => {
-    console.log('🔧 Análise manual forçada');
-    analyzeConversation();
-  };
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -320,7 +364,7 @@ export default function FabotChat() {
           content: data.message,
           timestamp: new Date(),
         };
-        console.log('📥 RESPOSTA RECEBIDA, adicionando aos messages...');
+        console.log('📥 RESPOSTA RECEBIDA');
         const finalMessages = [...newMessages, assistantMessage];
         setMessages(finalMessages);
       } else {
@@ -361,8 +405,36 @@ export default function FabotChat() {
     return chat?.name || 'Chat';
   };
 
+  const getRelevanceColor = (relevance: string) => {
+    switch (relevance) {
+      case 'high': return 'border-red-400/40 bg-red-500/10 text-red-200';
+      case 'medium': return 'border-yellow-400/40 bg-yellow-500/10 text-yellow-200';
+      case 'low': return 'border-blue-400/40 bg-blue-500/10 text-blue-200';
+      default: return 'border-purple-400/40 bg-purple-500/10 text-purple-200';
+    }
+  };
+
   return (
     <div className="h-screen flex bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      
+      {/* CSS para highlight de mensagem */}
+      <style jsx>{`
+        .highlight-message {
+          animation: highlight 2s ease-in-out;
+          transform: scale(1.02);
+        }
+        
+        @keyframes highlight {
+          0%, 100% { 
+            background-color: transparent; 
+            transform: scale(1);
+          }
+          50% { 
+            background-color: rgba(168, 85, 247, 0.2); 
+            transform: scale(1.02);
+          }
+        }
+      `}</style>
       
       {/* 🎨 Sidebar esquerda - estilo Libra */}
       <div className="w-16 bg-black/20 backdrop-blur-xl border-r border-purple-500/20 flex flex-col items-center py-4">
@@ -433,7 +505,7 @@ export default function FabotChat() {
                         {chat.name}
                       </h3>
                       <p className="text-purple-300/60 text-xs">
-                        {chat.messages.length} mensagens
+                        {chat.keyPoints?.length || 0} pontos-chave
                       </p>
                     </div>
                     <button
@@ -478,7 +550,7 @@ export default function FabotChat() {
                   onChange={(e) => setShowGuide(e.target.checked)}
                   className="rounded"
                 />
-                <span className="text-purple-200 text-sm">Mostrar Visual Guide</span>
+                <span className="text-purple-200 text-sm">Mostrar Key Points</span>
               </label>
             </div>
 
@@ -486,46 +558,27 @@ export default function FabotChat() {
               <h3 className="text-white font-medium mb-2">Dados</h3>
               <div className="space-y-2">
                 <p className="text-purple-200 text-sm">
-                  Chats salvos: {chats.length}
+                  Chats: {chats.length}
                 </p>
                 <p className="text-purple-200 text-sm">
-                  Mensagens totais: {chats.reduce((total, chat) => total + chat.messages.length, 0)}
+                  Key Points: {chats.reduce((total, chat) => total + (chat.keyPoints?.length || 0), 0)}
                 </p>
                 <button
                   onClick={() => {
-                    if (confirm('Tem certeza que deseja limpar todos os dados?')) {
+                    if (confirm('Limpar todos os dados?')) {
                       setChats([]);
                       setCurrentChatId(null);
                       setMessages([]);
-                      setAnalysis({
-                        keyPoints: [],
-                        topics: [],
-                        actionItems: [],
-                        questions: [],
-                        summary: "",
-                        nextSteps: ""
-                      });
+                      setKeyPoints([]);
                       localStorage.removeItem('fabot-chats');
                       localStorage.removeItem('fabot-current-chat');
                     }
                   }}
                   className="w-full px-3 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-300 rounded-lg transition-colors text-sm border border-red-500/30"
                 >
-                  Limpar todos os dados
+                  Limpar dados
                 </button>
               </div>
-            </div>
-
-            <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/30">
-              <h3 className="text-white font-medium mb-2">Sobre o FABOT</h3>
-              <p className="text-purple-200 text-sm mb-2">
-                Versão 2.0 - Chat Multitasking
-              </p>
-              <p className="text-purple-300/60 text-xs">
-                Powered by Groq API (Llama 3.1)<br />
-                Visual Guide automático<br />
-                Dados salvos localmente
-              </p>
             </div>
           </div>
         </div>
@@ -552,7 +605,7 @@ export default function FabotChat() {
                   onClick={() => setShowGuide(true)}
                   className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 rounded-lg transition-colors text-sm border border-purple-500/30"
                 >
-                  Visual Guide
+                  Key Points
                 </button>
               )}
               
@@ -577,7 +630,7 @@ export default function FabotChat() {
               <p className="text-purple-300/80 mb-8 max-w-md mx-auto">
                 {currentChatId 
                   ? 'Este chat está vazio. Comece digitando uma mensagem!' 
-                  : 'Seu assistente inteligente com análise automática de conversas. Comece digitando qualquer pergunta.'
+                  : 'Conversas inteligentes com extração automática de pontos-chave.'
                 }
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
@@ -601,7 +654,8 @@ export default function FabotChat() {
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              id={`message-${message.id}`}
+              className={`flex gap-4 transition-all duration-300 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {message.role === 'assistant' && (
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center flex-shrink-0">
@@ -685,160 +739,90 @@ export default function FabotChat() {
         </div>
       </div>
 
-      {/* ✨ Visual Guide - lado direito estilo Libra */}
+      {/* ✨ Key Points Guide - lado direito moderno */}
       {showGuide && (
-        <div className="w-80 bg-black/30 backdrop-blur-xl border-l border-purple-500/20 flex flex-col">
+        <div className="w-96 bg-black/20 backdrop-blur-xl border-l border-purple-500/20 flex flex-col">
           
-          {/* Header do Visual Guide */}
-          <div className="p-4 border-b border-purple-500/20 bg-purple-900/20">
+          {/* Header moderno */}
+          <div className="p-6 border-b border-purple-500/20">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <SparklesIcon className="w-4 h-4 text-purple-400" />
-                <h2 className="text-sm font-semibold text-white">Visual Guide</h2>
-                {isAnalyzing && (
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                )}
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
+                  <LightbulbIcon className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Key Points</h2>
+                  <p className="text-xs text-purple-300/60">Pontos principais em tempo real</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={forceAnalyze}
-                  className="px-2 py-1 text-xs bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 rounded transition-colors"
-                  title="Forçar análise"
-                >
-                  🔄
-                </button>
-                <button
-                  onClick={() => setShowGuide(false)}
-                  className="p-1 hover:bg-purple-700/50 rounded transition-colors"
-                >
-                  <XIcon className="w-4 h-4 text-purple-300" />
-                </button>
-              </div>
+              <button
+                onClick={() => setShowGuide(false)}
+                className="p-2 hover:bg-purple-700/30 rounded-lg transition-colors"
+              >
+                <XIcon className="w-4 h-4 text-purple-300" />
+              </button>
             </div>
           </div>
 
-          {/* Conteúdo do Visual Guide */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm">
+          {/* Conteúdo dos Key Points */}
+          <div className="flex-1 overflow-y-auto p-6">
             
-            {/* Status da análise */}
-            <div className="text-center py-2">
-              <p className="text-xs text-purple-400/80">
-                {isAnalyzing ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin"></div>
-                    Analisando conversa...
-                  </span>
-                ) : messages.length > 0 ? (
-                  <>
-                    <span>{messages.length} mensagens analisadas</span>
-                    <br />
-                    <span className="text-xs text-purple-500">v{analysisVersion}</span>
-                  </>
-                ) : (
-                  'Aguardando conversa...'
-                )}
-              </p>
+            {/* Status */}
+            <div className="mb-6 text-center">
+              {isAnalyzing ? (
+                <div className="flex items-center justify-center gap-2 text-purple-300">
+                  <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm">Analisando...</span>
+                </div>
+              ) : (
+                <div className="text-purple-400/80 text-sm">
+                  {keyPoints.length > 0 
+                    ? `${keyPoints.length} ponto${keyPoints.length > 1 ? 's' : ''} identificado${keyPoints.length > 1 ? 's' : ''}`
+                    : 'Aguardando conversa...'
+                  }
+                </div>
+              )}
             </div>
 
-            {/* Debug Info */}
-            {messages.length > 0 && (
-              <div className="bg-gray-800/30 rounded-lg p-2 border border-gray-600/30">
-                <p className="text-xs text-gray-400">
-                  🔍 Debug: {analysis.keyPoints.length} pontos, {analysis.questions.length} perguntas
-                </p>
-              </div>
-            )}
-
-            {/* Resumo */}
-            {analysis.summary && (
-              <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/30">
-                <div className="flex items-center gap-2 mb-2">
-                  <MessageSquareIcon className="w-3 h-3 text-blue-400" />
-                  <span className="text-xs font-medium text-blue-300">Resumo</span>
+            {/* Key Points List */}
+            <div className="space-y-4">
+              {keyPoints.length === 0 && !isAnalyzing ? (
+                <div className="text-center py-12">
+                  <LightbulbIcon className="w-12 h-12 text-purple-400/40 mx-auto mb-4" />
+                  <p className="text-purple-300/60 text-sm">
+                    Comece uma conversa para ver os pontos-chave aparecerrem automaticamente!
+                  </p>
                 </div>
-                <p className="text-xs text-purple-100 leading-relaxed">
-                  {analysis.summary}
-                </p>
-              </div>
-            )}
-
-            {/* Key Points */}
-            {analysis.keyPoints.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <LightbulbIcon className="w-3 h-3 text-yellow-400" />
-                  <span className="text-xs font-medium text-yellow-300">Pontos Principais</span>
-                  <span className="text-xs text-yellow-500">({analysis.keyPoints.length})</span>
-                </div>
-                <div className="space-y-2">
-                  {analysis.keyPoints.slice(0, 4).map((point, index) => (
-                    <div key={index} className="flex items-start gap-2 p-3 rounded-lg bg-yellow-900/20 border border-yellow-500/30">
-                      <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full mt-1.5 flex-shrink-0"></div>
-                      <p className="text-xs text-yellow-100 leading-relaxed">{point}</p>
+              ) : (
+                keyPoints.map((point, index) => (
+                  <div
+                    key={index}
+                    className={`group relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-lg ${getRelevanceColor(point.relevance)}`}
+                    onClick={() => scrollToMessage(point.messageId)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-relaxed font-medium">
+                          {point.text}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className={`text-xs px-2 py-1 rounded-full bg-white/10 backdrop-blur-sm`}>
+                            {point.relevance}
+                          </span>
+                          <ArrowUpIcon className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                  {analysis.keyPoints.length > 4 && (
-                    <p className="text-xs text-purple-400/60 text-center py-1">
-                      +{analysis.keyPoints.length - 4} pontos adicionais
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Perguntas Sugeridas */}
-            {analysis.questions.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <HelpCircleIcon className="w-3 h-3 text-purple-400" />
-                  <span className="text-xs font-medium text-purple-300">Sugestões</span>
-                  <span className="text-xs text-purple-500">({analysis.questions.length})</span>
-                </div>
-                <div className="space-y-2">
-                  {analysis.questions.slice(0, 3).map((question, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setInput(question)}
-                      className="w-full text-left p-3 rounded-lg bg-purple-900/20 border border-purple-500/30 hover:bg-purple-800/30 transition-colors"
-                    >
-                      <p className="text-xs text-purple-100 leading-relaxed">{question}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Ações */}
-            {analysis.actionItems.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircleIcon className="w-3 h-3 text-green-400" />
-                  <span className="text-xs font-medium text-green-300">Próximas Ações</span>
-                  <span className="text-xs text-green-500">({analysis.actionItems.length})</span>
-                </div>
-                <div className="space-y-2">
-                  {analysis.actionItems.slice(0, 3).map((item, index) => (
-                    <div key={index} className="flex items-start gap-2 p-3 rounded-lg bg-green-900/20 border border-green-500/30">
-                      <CheckCircleIcon className="w-3 h-3 text-green-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-green-100 leading-relaxed">{item}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Próximos Passos */}
-            {analysis.nextSteps && (
-              <div className="bg-gray-800/50 rounded-xl p-3 border border-gray-500/30">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUpIcon className="w-3 h-3 text-gray-400" />
-                  <span className="text-xs font-medium text-gray-300">Próximos Passos</span>
-                </div>
-                <p className="text-xs text-gray-300 leading-relaxed">
-                  {analysis.nextSteps}
-                </p>
-              </div>
-            )}
+                    
+                    {/* Hover effect */}
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
