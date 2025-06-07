@@ -299,6 +299,19 @@ export default function FabotChat() {
       console.log('🚫 Nenhuma mensagem para analisar');
       return;
     }
+
+    // Verificar se já está analisando para evitar duplicatas
+    if (isAnalyzing) {
+      console.log('⏳ Análise já em andamento, ignorando...');
+      return;
+    }
+
+    // Verificar se a última mensagem é da IA
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.role !== 'assistant') {
+      console.log('👤 Última mensagem é do usuário, aguardando resposta da IA...');
+      return;
+    }
     
     console.log('🔄 ANALISANDO KEY POINTS - Total de mensagens:', messages.length);
     setIsAnalyzing(true);
@@ -408,27 +421,40 @@ RULES:
       setIsAnalyzing(false);
       console.log('⏹️ Análise finalizada');
     }
-  }, [messages, updateCurrentChat, language]);
+  }, [messages, updateCurrentChat, language, isAnalyzing]);
 
-  // 🚀 Trigger automático
+  // 🚀 Trigger automático - APENAS quando há nova mensagem da IA
   useEffect(() => {
-    if (messages.length > 0) {
-      // Delay para garantir que a mensagem foi renderizada
-      setTimeout(() => {
-        analyzeConversation();
-      }, 1000);
+    if (messages.length > 0 && !isAnalyzing) {
+      const lastMessage = messages[messages.length - 1];
+      // Só analisa se a última mensagem for da IA (assistant)
+      if (lastMessage.role === 'assistant') {
+        console.log('🤖 Nova resposta da IA detectada, analisando...');
+        const timeoutId = setTimeout(() => {
+          analyzeConversation();
+        }, 1000);
+        
+        // Cleanup timeout se componente desmontar ou dependências mudarem
+        return () => clearTimeout(timeoutId);
+      }
     }
-  }, [messages.length, analyzeConversation]);
+  }, [messages.length, isAnalyzing, analyzeConversation]);
 
-  // 🌍 Re-analisar quando idioma muda (para conversas existentes)
+  // 🌍 Re-analisar quando idioma muda (APENAS se já existem key points)
   useEffect(() => {
-    if (messages.length > 0 && keyPoints.length > 0) {
-      console.log('🌍 Idioma mudou, re-analisando conversa...');
-      setTimeout(() => {
-        analyzeConversation();
-      }, 500);
+    if (messages.length > 0 && keyPoints.length > 0 && !isAnalyzing) {
+      const lastMessage = messages[messages.length - 1];
+      // Só re-analisa se tem conversa completa (última mensagem da IA)
+      if (lastMessage.role === 'assistant') {
+        console.log('🌍 Idioma mudou, re-analisando conversa existente...');
+        const timeoutId = setTimeout(() => {
+          analyzeConversation();
+        }, 800);
+        
+        return () => clearTimeout(timeoutId);
+      }
     }
-  }, [language]);
+  }, [language]); // Intencionalmente não inclui outras dependências para evitar loops
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
