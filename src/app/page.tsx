@@ -13,7 +13,11 @@ import {
   TrendingUpIcon,
   PlusIcon,
   SettingsIcon,
-  XIcon
+  XIcon,
+  TrashIcon,
+  EditIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from "lucide-react";
 
 interface Message {
@@ -36,11 +40,24 @@ interface ConversationAnalysis {
   nextSteps: string;
 }
 
+interface Chat {
+  id: string;
+  name: string;
+  messages: Message[];
+  analysis: ConversationAnalysis;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export default function FabotChat() {
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showGuide, setShowGuide] = useState(true);
+  const [showChatList, setShowChatList] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [analysis, setAnalysis] = useState<ConversationAnalysis>({
     keyPoints: [],
     topics: [],
@@ -54,6 +71,145 @@ export default function FabotChat() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 💾 Carregar dados do localStorage na inicialização
+  useEffect(() => {
+    const savedChats = localStorage.getItem('fabot-chats');
+    const savedCurrentChatId = localStorage.getItem('fabot-current-chat');
+    
+    if (savedChats) {
+      try {
+        const parsedChats = JSON.parse(savedChats).map((chat: any) => ({
+          ...chat,
+          createdAt: new Date(chat.createdAt),
+          updatedAt: new Date(chat.updatedAt),
+          messages: chat.messages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }))
+        }));
+        setChats(parsedChats);
+        
+        if (savedCurrentChatId && parsedChats.find((c: Chat) => c.id === savedCurrentChatId)) {
+          setCurrentChatId(savedCurrentChatId);
+          const currentChat = parsedChats.find((c: Chat) => c.id === savedCurrentChatId);
+          if (currentChat) {
+            setMessages(currentChat.messages);
+            setAnalysis(currentChat.analysis);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar chats:', error);
+      }
+    }
+  }, []);
+
+  // 💾 Salvar dados no localStorage
+  const saveToStorage = useCallback((updatedChats: Chat[], currentId: string | null) => {
+    localStorage.setItem('fabot-chats', JSON.stringify(updatedChats));
+    if (currentId) {
+      localStorage.setItem('fabot-current-chat', currentId);
+    } else {
+      localStorage.removeItem('fabot-current-chat');
+    }
+  }, []);
+
+  // 🆕 Criar novo chat
+  const createNewChat = () => {
+    const newChat: Chat = {
+      id: Date.now().toString(),
+      name: `Chat ${chats.length + 1}`,
+      messages: [],
+      analysis: {
+        keyPoints: [],
+        topics: [],
+        actionItems: [],
+        questions: [],
+        summary: "",
+        nextSteps: ""
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const updatedChats = [...chats, newChat];
+    setChats(updatedChats);
+    setCurrentChatId(newChat.id);
+    setMessages([]);
+    setAnalysis(newChat.analysis);
+    setShowChatList(false);
+    saveToStorage(updatedChats, newChat.id);
+    
+    console.log('🆕 Novo chat criado:', newChat.name);
+  };
+
+  // 🔄 Trocar chat
+  const switchChat = (chatId: string) => {
+    const chat = chats.find(c => c.id === chatId);
+    if (chat) {
+      setCurrentChatId(chatId);
+      setMessages(chat.messages);
+      setAnalysis(chat.analysis);
+      setShowChatList(false);
+      saveToStorage(chats, chatId);
+      console.log('🔄 Trocando para chat:', chat.name);
+    }
+  };
+
+  // 🗑️ Deletar chat
+  const deleteChat = (chatId: string) => {
+    const updatedChats = chats.filter(c => c.id !== chatId);
+    setChats(updatedChats);
+    
+    if (currentChatId === chatId) {
+      if (updatedChats.length > 0) {
+        const newCurrentChat = updatedChats[updatedChats.length - 1];
+        setCurrentChatId(newCurrentChat.id);
+        setMessages(newCurrentChat.messages);
+        setAnalysis(newCurrentChat.analysis);
+        saveToStorage(updatedChats, newCurrentChat.id);
+      } else {
+        setCurrentChatId(null);
+        setMessages([]);
+        setAnalysis({
+          keyPoints: [],
+          topics: [],
+          actionItems: [],
+          questions: [],
+          summary: "",
+          nextSteps: ""
+        });
+        saveToStorage(updatedChats, null);
+      }
+    } else {
+      saveToStorage(updatedChats, currentChatId);
+    }
+    
+    console.log('🗑️ Chat deletado');
+  };
+
+  // 📝 Atualizar chat atual
+  const updateCurrentChat = useCallback((newMessages: Message[], newAnalysis: ConversationAnalysis) => {
+    if (!currentChatId) return;
+
+    const updatedChats = chats.map(chat => {
+      if (chat.id === currentChatId) {
+        return {
+          ...chat,
+          messages: newMessages,
+          analysis: newAnalysis,
+          updatedAt: new Date(),
+          name: newMessages.length > 0 && chat.name.startsWith('Chat') 
+            ? newMessages[0].content.substring(0, 30) + '...'
+            : chat.name
+        };
+      }
+      return chat;
+    });
+
+    setChats(updatedChats);
+    saveToStorage(updatedChats, currentChatId);
+  }, [currentChatId, chats, saveToStorage]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -89,6 +245,7 @@ export default function FabotChat() {
         console.log('✅ ANÁLISE RECEBIDA:', analysisResult);
         setAnalysis(analysisResult);
         setAnalysisVersion(prev => prev + 1);
+        updateCurrentChat(messages, analysisResult);
         console.log('🎯 Visual Guide ATUALIZADO! Versão:', analysisVersion + 1);
       } else {
         console.error('❌ Erro na resposta da API:', response.status);
@@ -101,14 +258,13 @@ export default function FabotChat() {
       setIsAnalyzing(false);
       console.log('⏹️ Análise finalizada');
     }
-  }, [messages, analysisVersion]);
+  }, [messages, analysisVersion, updateCurrentChat]);
 
   // 🚀 Trigger automático melhorado
   useEffect(() => {
     console.log('🔄 useEffect triggered - messages length:', messages.length);
     
     if (messages.length > 0) {
-      // Análise imediata
       console.log('⚡ Iniciando análise imediata...');
       analyzeConversation();
     }
@@ -124,6 +280,11 @@ export default function FabotChat() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
+    // Se não há chat atual, criar um novo
+    if (!currentChatId) {
+      createNewChat();
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -132,11 +293,8 @@ export default function FabotChat() {
     };
 
     console.log('📤 ENVIANDO MENSAGEM:', userMessage.content);
-    setMessages(prev => {
-      const newMessages = [...prev, userMessage];
-      console.log('📝 Total de mensagens após adicionar usuário:', newMessages.length);
-      return newMessages;
-    });
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput("");
     setIsLoading(true);
 
@@ -147,7 +305,7 @@ export default function FabotChat() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          messages: [...messages, userMessage].map(msg => ({
+          messages: newMessages.map(msg => ({
             role: msg.role,
             content: msg.content
           }))
@@ -163,11 +321,8 @@ export default function FabotChat() {
           timestamp: new Date(),
         };
         console.log('📥 RESPOSTA RECEBIDA, adicionando aos messages...');
-        setMessages(prev => {
-          const newMessages = [...prev, assistantMessage];
-          console.log('📝 Total de mensagens após resposta IA:', newMessages.length);
-          return newMessages;
-        });
+        const finalMessages = [...newMessages, assistantMessage];
+        setMessages(finalMessages);
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Falha na resposta da API');
@@ -200,6 +355,12 @@ export default function FabotChat() {
     });
   };
 
+  const getCurrentChatName = () => {
+    if (!currentChatId) return 'Novo Chat';
+    const chat = chats.find(c => c.id === currentChatId);
+    return chat?.name || 'Chat';
+  };
+
   return (
     <div className="h-screen flex bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       
@@ -210,14 +371,165 @@ export default function FabotChat() {
         </div>
         
         <div className="flex flex-col gap-3">
-          <button className="w-10 h-10 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center justify-center transition-colors">
+          <button 
+            onClick={createNewChat}
+            className="w-10 h-10 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center justify-center transition-colors"
+            title="Novo Chat"
+          >
             <PlusIcon className="w-5 h-5 text-purple-300" />
           </button>
-          <button className="w-10 h-10 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center justify-center transition-colors">
+          <button 
+            onClick={() => setShowChatList(!showChatList)}
+            className="w-10 h-10 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center justify-center transition-colors"
+            title="Lista de Chats"
+          >
+            <MessageSquareIcon className="w-5 h-5 text-purple-300" />
+          </button>
+          <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className="w-10 h-10 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center justify-center transition-colors"
+            title="Configurações"
+          >
             <SettingsIcon className="w-5 h-5 text-purple-300" />
           </button>
         </div>
       </div>
+
+      {/* 📋 Lista de Chats */}
+      {showChatList && (
+        <div className="w-80 bg-black/30 backdrop-blur-xl border-r border-purple-500/20 flex flex-col">
+          <div className="p-4 border-b border-purple-500/20">
+            <div className="flex items-center justify-between">
+              <h2 className="text-white font-semibold">Seus Chats</h2>
+              <button
+                onClick={() => setShowChatList(false)}
+                className="p-1 hover:bg-purple-700/50 rounded transition-colors"
+              >
+                <XIcon className="w-4 h-4 text-purple-300" />
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {chats.length === 0 ? (
+              <p className="text-purple-300/60 text-sm text-center py-8">
+                Nenhum chat ainda.<br />
+                Clique em + para criar seu primeiro chat!
+              </p>
+            ) : (
+              chats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                    currentChatId === chat.id
+                      ? 'bg-purple-600/30 border-purple-500/50'
+                      : 'bg-purple-900/20 border-purple-500/20 hover:bg-purple-800/30'
+                  }`}
+                  onClick={() => switchChat(chat.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-white text-sm font-medium truncate">
+                        {chat.name}
+                      </h3>
+                      <p className="text-purple-300/60 text-xs">
+                        {chat.messages.length} mensagens
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteChat(chat.id);
+                      }}
+                      className="p-1 hover:bg-red-500/30 rounded transition-colors"
+                    >
+                      <TrashIcon className="w-3 h-3 text-red-400" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ⚙️ Painel de Configurações */}
+      {showSettings && (
+        <div className="w-80 bg-black/30 backdrop-blur-xl border-r border-purple-500/20 flex flex-col">
+          <div className="p-4 border-b border-purple-500/20">
+            <div className="flex items-center justify-between">
+              <h2 className="text-white font-semibold">Configurações</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-1 hover:bg-purple-700/50 rounded transition-colors"
+              >
+                <XIcon className="w-4 h-4 text-purple-300" />
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/30">
+              <h3 className="text-white font-medium mb-2">Visual Guide</h3>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={showGuide}
+                  onChange={(e) => setShowGuide(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-purple-200 text-sm">Mostrar Visual Guide</span>
+              </label>
+            </div>
+
+            <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/30">
+              <h3 className="text-white font-medium mb-2">Dados</h3>
+              <div className="space-y-2">
+                <p className="text-purple-200 text-sm">
+                  Chats salvos: {chats.length}
+                </p>
+                <p className="text-purple-200 text-sm">
+                  Mensagens totais: {chats.reduce((total, chat) => total + chat.messages.length, 0)}
+                </p>
+                <button
+                  onClick={() => {
+                    if (confirm('Tem certeza que deseja limpar todos os dados?')) {
+                      setChats([]);
+                      setCurrentChatId(null);
+                      setMessages([]);
+                      setAnalysis({
+                        keyPoints: [],
+                        topics: [],
+                        actionItems: [],
+                        questions: [],
+                        summary: "",
+                        nextSteps: ""
+                      });
+                      localStorage.removeItem('fabot-chats');
+                      localStorage.removeItem('fabot-current-chat');
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-300 rounded-lg transition-colors text-sm border border-red-500/30"
+                >
+                  Limpar todos os dados
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/30">
+              <h3 className="text-white font-medium mb-2">Sobre o FABOT</h3>
+              <p className="text-purple-200 text-sm mb-2">
+                Versão 2.0 - Chat Multitasking
+              </p>
+              <p className="text-purple-300/60 text-xs">
+                Powered by Groq API (Llama 3.1)<br />
+                Visual Guide automático<br />
+                Dados salvos localmente
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 💬 Área principal do chat */}
       <div className="flex-1 flex flex-col">
@@ -230,7 +542,7 @@ export default function FabotChat() {
                 FABOT
               </h1>
               <p className="text-sm text-purple-300/80">
-                Chat Multitasking
+                {getCurrentChatName()}
               </p>
             </div>
             
@@ -260,10 +572,13 @@ export default function FabotChat() {
                 <BotIcon className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-3">
-                Bem-vindo ao FABOT!
+                {currentChatId ? 'Chat vazio' : 'Bem-vindo ao FABOT!'}
               </h2>
               <p className="text-purple-300/80 mb-8 max-w-md mx-auto">
-                Seu assistente inteligente com análise automática de conversas. Comece digitando qualquer pergunta.
+                {currentChatId 
+                  ? 'Este chat está vazio. Comece digitando uma mensagem!' 
+                  : 'Seu assistente inteligente com análise automática de conversas. Comece digitando qualquer pergunta.'
+                }
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
                 {[
