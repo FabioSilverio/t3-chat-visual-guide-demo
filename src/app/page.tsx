@@ -13,7 +13,8 @@ import {
   TrendingUpIcon,
   MessageSquareIcon,
   SparklesIcon,
-  ClockIcon
+  ClockIcon,
+  XIcon
 } from "lucide-react";
 
 interface Message {
@@ -62,7 +63,7 @@ export default function T3ChatDemo() {
     scrollToBottom();
   }, [messages]);
 
-  // Analisar conversa automaticamente após mudanças
+  // 🔥 Analisar conversa automaticamente após mudanças
   useEffect(() => {
     if (messages.length > 0) {
       analyzeConversation();
@@ -85,9 +86,12 @@ export default function T3ChatDemo() {
       if (response.ok) {
         const analysisResult = await response.json();
         setAnalysis(analysisResult);
+        console.log('🎯 Visual Guide atualizado:', analysisResult);
+      } else {
+        console.error('❌ Erro na análise:', response.status);
       }
     } catch (error) {
-      console.error('Erro ao analisar conversa:', error);
+      console.error('❌ Erro ao analisar conversa:', error);
     } finally {
       setIsAnalyzing(false);
     }
@@ -163,183 +167,35 @@ export default function T3ChatDemo() {
     });
   };
 
-  const getImportanceColor = (importance: string) => {
-    switch (importance) {
-      case 'high': return 'text-red-700 bg-red-100 border-red-300';
-      case 'medium': return 'text-orange-700 bg-orange-100 border-orange-300';
-      case 'low': return 'text-purple-700 bg-purple-100 border-purple-300';
-      default: return 'text-gray-700 bg-gray-100 border-gray-300';
-    }
-  };
-
   return (
     <div className="h-screen flex bg-gray-900">
-      {/* Visual Guide Inteligente */}
-      <div className={`bg-gray-800 border-r border-gray-700 transition-all duration-300 ${
-        showGuide ? 'w-96' : 'w-0'
-      } overflow-hidden flex flex-col`}>
-        
-        {/* Header do Guide */}
-        <div className="p-4 border-b border-gray-700 bg-gradient-to-r from-purple-900 to-purple-800">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <SparklesIcon className="w-5 h-5 text-purple-300" />
-              Visual Guide
-            </h2>
-            <button
-              onClick={() => setShowGuide(false)}
-              className="p-1 hover:bg-purple-700 rounded transition-colors"
-            >
-              <ChevronLeftIcon className="w-4 h-4 text-purple-200" />
-            </button>
-          </div>
-          <p className="text-sm text-purple-200 mt-1">
-            Análise automática da conversa
-          </p>
-        </div>
-
-        {/* Conteúdo do Guide */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          
-          {/* Resumo Geral */}
-          <div className="bg-purple-900 rounded-lg p-4 border border-purple-700">
-            <h3 className="text-sm font-semibold text-purple-200 mb-2 flex items-center gap-2">
-              <MessageSquareIcon className="w-4 h-4" />
-              Resumo da Conversa
-            </h3>
-            <p className="text-sm text-purple-100">
-              {analysis.summary}
-            </p>
-          </div>
-
-          {/* Pontos Principais */}
-          {analysis.keyPoints.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-200 mb-3 flex items-center gap-2">
-                <LightbulbIcon className="w-4 h-4 text-yellow-400" />
-                Pontos Principais
-              </h3>
-              <div className="space-y-2">
-                {analysis.keyPoints.map((point, index) => (
-                  <div key={index} className="flex items-start gap-2 p-3 rounded bg-yellow-900 border border-yellow-700">
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 flex-shrink-0"></div>
-                    <p className="text-sm text-yellow-100">{point}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tópicos Identificados */}
-          {analysis.topics.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-200 mb-3 flex items-center gap-2">
-                <TrendingUpIcon className="w-4 h-4 text-green-400" />
-                Tópicos
-              </h3>
-              <div className="space-y-2">
-                {analysis.topics.map((topic, index) => (
-                  <div key={index} className={`p-3 rounded-lg border ${getImportanceColor(topic.importance)}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-medium">{topic.name}</h4>
-                      <span className="text-xs px-2 py-1 rounded-full bg-gray-800 text-gray-200">
-                        {topic.importance}
-                      </span>
-                    </div>
-                    <p className="text-xs opacity-80">{topic.summary}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Itens de Ação */}
-          {analysis.actionItems.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-200 mb-3 flex items-center gap-2">
-                <CheckCircleIcon className="w-4 h-4 text-green-400" />
-                Próximas Ações
-              </h3>
-              <div className="space-y-2">
-                {analysis.actionItems.map((item, index) => (
-                  <div key={index} className="flex items-start gap-2 p-3 rounded bg-green-900 border border-green-700">
-                    <CheckCircleIcon className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-green-100">{item}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Perguntas Relevantes */}
-          {analysis.questions.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-200 mb-3 flex items-center gap-2">
-                <HelpCircleIcon className="w-4 h-4 text-purple-400" />
-                Perguntas Sugeridas
-              </h3>
-              <div className="space-y-2">
-                {analysis.questions.map((question, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setInput(question)}
-                    className="w-full text-left p-3 rounded bg-purple-900 border border-purple-700 hover:bg-purple-800 transition-colors"
-                  >
-                    <p className="text-sm text-purple-100">{question}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Próximos Passos */}
-          <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
-            <h3 className="text-sm font-semibold text-gray-200 mb-2">
-              Próximos Passos
-            </h3>
-            <p className="text-sm text-gray-300">
-              {analysis.nextSteps}
-            </p>
-          </div>
-
-          {/* Indicador de Análise */}
-          {isAnalyzing && (
-            <div className="flex items-center gap-2 text-sm text-purple-300 justify-center py-4">
-              <SparklesIcon className="w-4 h-4 animate-spin" />
-              Analisando conversa...
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Área Principal do Chat */}
+      
+      {/* 💬 Área Principal do Chat */}
       <div className="flex-1 flex flex-col">
         
         {/* Header */}
         <header className="bg-gray-800 border-b border-gray-700 p-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div>
+              <h1 className="text-xl font-semibold text-white">
+                T3 Chat com Visual Guide
+              </h1>
+              <p className="text-sm text-gray-400">
+                Chat inteligente com análise automática • Llama 3.1
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-4">
               {!showGuide && (
                 <button
                   onClick={() => setShowGuide(true)}
-                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                  title="Mostrar Visual Guide"
+                  className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
                 >
-                  <ChevronRightIcon className="w-5 h-5 text-purple-300" />
+                  <SparklesIcon className="w-4 h-4" />
+                  Visual Guide
                 </button>
               )}
               
-              <div>
-                <h1 className="text-xl font-semibold text-white">
-                  T3 Chat com Visual Guide
-                </h1>
-                <p className="text-sm text-gray-400">
-                  Chat inteligente com análise automática • GPT-3.5 Turbo
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                 Online
@@ -356,14 +212,14 @@ export default function T3ChatDemo() {
               <h2 className="text-xl font-semibold text-white mb-2">
                 Bem-vindo ao T3 Chat!
               </h2>
-              <p className="text-gray-400 mb-4">
-                Comece uma conversa e veja o Visual Guide em ação
+              <p className="text-gray-400 mb-6">
+                (Se você tiver uma ideia específica, sinta-se à vontade para me dizer e vamos começar a explorar!)
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {[
-                  "Como você pode me ajudar?",
-                  "Explique conceitos de programação",
-                  "Dicas de produtividade"
+                  "Quem está por trás do modelo Groq?",
+                  "Como funciona machine learning?",
+                  "Dicas de programação"
                 ].map((suggestion, index) => (
                   <button
                     key={index}
@@ -448,22 +304,149 @@ export default function T3ChatDemo() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Digite sua mensagem... (Enter para enviar, Shift+Enter para nova linha)"
-                  className="w-full p-4 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none min-h-[50px] max-h-[200px] bg-gray-700 text-white placeholder-gray-400"
+                  className="w-full p-4 bg-gray-700 border border-gray-600 rounded-2xl text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-32 min-h-[3rem]"
                   rows={1}
-                  disabled={isLoading}
                 />
               </div>
+              
               <button
                 type="submit"
-                disabled={!input.trim() || isLoading}
-                className="p-4 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                disabled={isLoading || !input.trim()}
+                className="p-4 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-2xl transition-colors flex items-center justify-center"
               >
                 <SendIcon className="w-5 h-5" />
               </button>
             </form>
             
-            <p className="text-xs text-gray-500 mt-2 text-center">
+            <p className="text-xs text-gray-500 text-center mt-2">
               Chat inteligente com análise automática de conversa
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ✨ Visual Guide Minimalista - LADO DIREITO */}
+      <div className={`bg-gray-800 border-l border-gray-700 transition-all duration-300 ${
+        showGuide ? 'w-80' : 'w-0'
+      } overflow-hidden flex flex-col`}>
+        
+        {/* Header Minimalista */}
+        <div className="p-3 border-b border-gray-700 bg-purple-900/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <SparklesIcon className="w-4 h-4 text-purple-300" />
+              <h2 className="text-sm font-semibold text-white">Visual Guide</h2>
+              {isAnalyzing && (
+                <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+              )}
+            </div>
+            <button
+              onClick={() => setShowGuide(false)}
+              className="p-1 hover:bg-purple-700/50 rounded transition-colors"
+            >
+              <XIcon className="w-4 h-4 text-purple-200" />
+            </button>
+          </div>
+        </div>
+
+        {/* Conteúdo Minimalista */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 text-sm">
+          
+          {/* Resumo Compacto */}
+          {analysis.summary && (
+            <div className="bg-gray-700/50 rounded-lg p-3 border border-gray-600">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquareIcon className="w-3 h-3 text-blue-400" />
+                <span className="text-xs font-medium text-blue-300">Resumo</span>
+              </div>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                {analysis.summary}
+              </p>
+            </div>
+          )}
+
+          {/* Pontos Principais - Compacto */}
+          {analysis.keyPoints.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <LightbulbIcon className="w-3 h-3 text-yellow-400" />
+                <span className="text-xs font-medium text-yellow-300">Pontos-chave</span>
+              </div>
+              <div className="space-y-1">
+                {analysis.keyPoints.slice(0, 3).map((point, index) => (
+                  <div key={index} className="flex items-start gap-2 p-2 rounded bg-yellow-900/30 border border-yellow-700/30">
+                    <div className="w-1 h-1 bg-yellow-400 rounded-full mt-2 flex-shrink-0"></div>
+                    <p className="text-xs text-yellow-100 leading-relaxed">{point}</p>
+                  </div>
+                ))}
+                {analysis.keyPoints.length > 3 && (
+                  <p className="text-xs text-gray-400 text-center py-1">
+                    +{analysis.keyPoints.length - 3} mais...
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Perguntas Sugeridas - Compacto */}
+          {analysis.questions.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <HelpCircleIcon className="w-3 h-3 text-purple-400" />
+                <span className="text-xs font-medium text-purple-300">Sugestões</span>
+              </div>
+              <div className="space-y-1">
+                {analysis.questions.slice(0, 2).map((question, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setInput(question)}
+                    className="w-full text-left p-2 rounded bg-purple-900/30 border border-purple-700/30 hover:bg-purple-800/40 transition-colors"
+                  >
+                    <p className="text-xs text-purple-100 leading-relaxed">{question}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Ações - Compacto */}
+          {analysis.actionItems.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircleIcon className="w-3 h-3 text-green-400" />
+                <span className="text-xs font-medium text-green-300">Ações</span>
+              </div>
+              <div className="space-y-1">
+                {analysis.actionItems.slice(0, 2).map((item, index) => (
+                  <div key={index} className="flex items-start gap-2 p-2 rounded bg-green-900/30 border border-green-700/30">
+                    <CheckCircleIcon className="w-3 h-3 text-green-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-green-100 leading-relaxed">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Próximos Passos - Compacto */}
+          {analysis.nextSteps && (
+            <div className="bg-gray-700/50 rounded-lg p-3 border border-gray-600">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUpIcon className="w-3 h-3 text-gray-400" />
+                <span className="text-xs font-medium text-gray-300">Próximos Passos</span>
+              </div>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                {analysis.nextSteps}
+              </p>
+            </div>
+          )}
+          
+          {/* Status */}
+          <div className="text-center py-2">
+            <p className="text-xs text-gray-500">
+              {messages.length > 0 ? 
+                `Analisando ${messages.length} mensagens` : 
+                'Aguardando conversa...'
+              }
             </p>
           </div>
         </div>
