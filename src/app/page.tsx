@@ -28,6 +28,9 @@ import {
   RefreshCwIcon
 } from "lucide-react";
 
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -79,7 +82,7 @@ const LLM_PROVIDERS: LLMProvider[] = [
     id: 'claude',
     name: 'Claude',
     icon: '🎭',
-    models: ['claude-3-5-sonnet', 'claude-3-haiku'],
+    models: ['claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307'],
     apiEndpoint: '/api/claude'
   }
 ];
@@ -567,25 +570,44 @@ RULES:
 
   // 🔗 Share chat functionality
   const shareChat = async () => {
+    if (!currentChatId || messages.length === 0) {
+      alert('Nenhum chat para exportar!');
+      return;
+    }
+
+    const currentChat = chats.find(c => c.id === currentChatId);
     const chatData = {
       id: currentChatId,
+      name: currentChat?.name || 'Chat Export',
       messages: messages,
       keyPoints: keyPoints,
-      timestamp: new Date().toISOString()
+      model: selectedModel,
+      timestamp: new Date().toISOString(),
+      exportedBy: 'FABOT',
+      version: '2.0'
     };
     
     try {
-      const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' });
+      const jsonString = JSON.stringify(chatData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
+      
       const a = document.createElement('a');
       a.href = url;
-      a.download = `fabot-chat-${Date.now()}.json`;
+      a.download = `fabot-${chatData.name.replace(/[^a-z0-9]/gi, '-')}-${Date.now()}.json`;
+      a.style.display = 'none';
+      
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      
       URL.revokeObjectURL(url);
+      
+      // Show success message
+      console.log('✅ Chat exportado com sucesso!');
     } catch (error) {
-      console.error('Erro ao compartilhar chat:', error);
+      console.error('❌ Erro ao exportar chat:', error);
+      alert('Erro ao exportar chat. Tente novamente.');
     }
   };
 
@@ -631,6 +653,62 @@ RULES:
     return LLM_PROVIDERS.find(p => p.id === selectedModel) || LLM_PROVIDERS[0];
   };
 
+  // 🎨 Generate image function
+  const generateImage = async (prompt: string) => {
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          prompt: prompt,
+          size: '1024x1024'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate image');
+      }
+
+      const data = await response.json();
+      
+      // Create an image message
+      const imageMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: `🎨 **Imagem gerada:** ${data.revisedPrompt || prompt}\n\n![Generated Image](${data.imageUrl})`,
+        timestamp: new Date(),
+        model: selectedModel,
+        attachments: [{
+          id: Date.now().toString(),
+          name: 'generated-image.png',
+          type: 'image',
+          url: data.imageUrl,
+          size: 0
+        }]
+      };
+
+      setMessages(prev => [...prev, imageMessage]);
+      
+    } catch (error) {
+      console.error('Error generating image:', error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: `❌ Erro ao gerar imagem: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        timestamp: new Date(),
+        model: selectedModel
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -658,7 +736,19 @@ RULES:
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      // Check if it's an image generation request
+      if (imageGenMode && input.trim().toLowerCase().startsWith('/image ')) {
+        const imagePrompt = input.trim().substring(7); // Remove "/image " prefix
+        if (imagePrompt) {
+          await generateImage(imagePrompt);
+          return;
+        }
+      }
+
+      // Get the current provider's API endpoint
+      const currentProvider = getCurrentProvider();
+      
+      const response = await fetch(currentProvider.apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -667,7 +757,8 @@ RULES:
           messages: newMessages.map(msg => ({
             role: msg.role,
             content: msg.content
-          }))
+          })),
+          model: selectedModelName
         }),
       });
 
@@ -1164,33 +1255,60 @@ RULES:
                     </div>
                   )}
 
-                  {/* Message content with enhanced code highlighting */}
+                  {/* Message content with professional syntax highlighting */}
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
                     {message.content.split('```').map((part, index) => {
                       if (index % 2 === 1) {
                         // This is code
                         const lines = part.split('\n');
-                        const language = lines[0].trim();
+                        const language = lines[0].trim() || 'javascript';
                         const code = lines.slice(1).join('\n');
                         
                         return (
-                          <div key={index} className="bg-black/60 rounded-lg p-4 my-3 border border-purple-500/30 font-mono">
-                            <div className="flex items-center justify-between mb-2">
+                          <div key={index} className="my-4 rounded-lg overflow-hidden border border-purple-500/30 bg-[#1e1e1e]">
+                            <div className="flex items-center justify-between px-4 py-2 bg-black/60 border-b border-purple-500/20">
                               <div className="flex items-center gap-2 text-xs text-purple-400">
                                 <CodeIcon className="w-3 h-3" />
-                                <span>{language || 'Code'}</span>
+                                <span className="font-medium">{language}</span>
                               </div>
                               <button
-                                onClick={() => navigator.clipboard.writeText(code)}
-                                className="p-1 hover:bg-purple-600/20 rounded text-purple-400 hover:text-purple-300 transition-colors"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(code);
+                                  // Show copied feedback
+                                  const btn = event?.target as HTMLButtonElement;
+                                  const originalText = btn.textContent;
+                                  btn.textContent = '✓';
+                                  setTimeout(() => {
+                                    btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>';
+                                  }, 1000);
+                                }}
+                                className="p-1.5 hover:bg-purple-600/20 rounded text-purple-400 hover:text-purple-300 transition-colors"
                                 title="Copy code"
                               >
                                 <CopyIcon className="w-3 h-3" />
                               </button>
                             </div>
-                            <pre className="text-green-300 text-sm overflow-x-auto">
-                              {code}
-                            </pre>
+                            <div className="overflow-x-auto">
+                              <SyntaxHighlighter
+                                language={language}
+                                style={vscDarkPlus}
+                                customStyle={{
+                                  margin: 0,
+                                  padding: '16px',
+                                  background: 'transparent',
+                                  fontSize: '13px',
+                                  lineHeight: '1.5'
+                                }}
+                                showLineNumbers={true}
+                                lineNumberStyle={{
+                                  color: '#6b7280',
+                                  paddingRight: '16px',
+                                  userSelect: 'none'
+                                }}
+                              >
+                                {code}
+                              </SyntaxHighlighter>
+                            </div>
                           </div>
                         );
                       }
@@ -1321,7 +1439,13 @@ RULES:
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={codeMode ? "Enter your code or programming question..." : t('typePlaceholder')}
+                placeholder={
+                  imageGenMode 
+                    ? "Digite '/image [descrição]' para gerar uma imagem..." 
+                    : codeMode 
+                      ? "Enter your code or programming question..." 
+                      : t('typePlaceholder')
+                }
                 className="w-full p-4 bg-black/40 backdrop-blur-xl border border-purple-500/30 rounded-2xl text-white placeholder-purple-400/60 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-32 min-h-[3rem]"
                 rows={1}
               />
