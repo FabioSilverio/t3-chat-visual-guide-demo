@@ -763,14 +763,25 @@ RULES:
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const responseText = await response.text();
+        console.log('🔍 Raw API response:', responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('❌ JSON Parse Error:', parseError);
+          console.error('📄 Response was:', responseText);
+          throw new Error(`Invalid response format. Got: ${responseText.substring(0, 100)}...`);
+        }
+        
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content: data.message,
+          content: data.message || 'Resposta inválida da API',
           timestamp: new Date(),
           model: selectedModel,
-          hasCode: data.message.includes('```')
+          hasCode: (data.message || '').includes('```')
         };
         console.log('📥 RESPOSTA RECEBIDA - DISPARANDO ANÁLISE!');
         const finalMessages = [...newMessages, assistantMessage];
@@ -784,8 +795,18 @@ RULES:
           }
         }, 100); // Mínimo delay apenas para garantir que messages foi atualizado
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Falha na resposta da API');
+        const errorText = await response.text();
+        console.error(`❌ API Error ${response.status}:`, errorText);
+        
+        let errorMessage;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || `HTTP ${response.status}: ${errorText}`;
+        } catch {
+          errorMessage = `HTTP ${response.status}: ${errorText}`;
+        }
+        
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
