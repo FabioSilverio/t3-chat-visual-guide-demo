@@ -14,7 +14,18 @@ import {
   MessageSquareIcon,
   ArrowUpIcon,
   LanguagesIcon,
-  MenuIcon
+  MenuIcon,
+  PaperclipIcon,
+  ImageIcon,
+  CodeIcon,
+  ShareIcon,
+  SearchIcon,
+  BrainIcon,
+  CloudIcon,
+  ZapIcon,
+  CopyIcon,
+  DownloadIcon,
+  RefreshCwIcon
 } from "lucide-react";
 
 interface Message {
@@ -22,6 +33,17 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  attachments?: Attachment[];
+  model?: string;
+  hasCode?: boolean;
+}
+
+interface Attachment {
+  id: string;
+  name: string;
+  type: 'image' | 'pdf' | 'text';
+  url: string;
+  size: number;
 }
 
 interface KeyPoint {
@@ -37,6 +59,31 @@ interface Translations {
   };
 }
 
+// 🤖 Available LLM Providers
+const LLM_PROVIDERS: LLMProvider[] = [
+  {
+    id: 'groq',
+    name: 'Groq (Fast)',
+    icon: '⚡',
+    models: ['llama-3.1-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+    apiEndpoint: '/api/chat'
+  },
+  {
+    id: 'openai', 
+    name: 'OpenAI',
+    icon: '🧠',
+    models: ['gpt-4o', 'gpt-4', 'gpt-3.5-turbo'],
+    apiEndpoint: '/api/openai'
+  },
+  {
+    id: 'claude',
+    name: 'Claude',
+    icon: '🎭',
+    models: ['claude-3-5-sonnet', 'claude-3-haiku'],
+    apiEndpoint: '/api/claude'
+  }
+];
+
 const translations: Translations = {
   // Header
   newChat: { pt: "Novo Chat", en: "New Chat" },
@@ -44,6 +91,17 @@ const translations: Translations = {
   settings: { pt: "Configurações", en: "Settings" },
   keyPoints: { pt: "Key Points", en: "Key Points" },
   online: { pt: "Online", en: "Online" },
+  
+  // LLM & Features
+  selectModel: { pt: "Selecionar Modelo", en: "Select Model" },
+  attachFile: { pt: "Anexar Arquivo", en: "Attach File" },
+  shareChat: { pt: "Compartilhar Chat", en: "Share Chat" },
+  webSearch: { pt: "Busca Web", en: "Web Search" },
+  codeMode: { pt: "Modo Código", en: "Code Mode" },
+  branchChat: { pt: "Criar Branch", en: "Branch Chat" },
+  imageGeneration: { pt: "Gerar Imagem", en: "Generate Image" },
+  chatStats: { pt: "Estatísticas", en: "Chat Stats" },
+  exportChats: { pt: "Exportar Todos", en: "Export All Chats" },
   
   // Chat
   welcome: { pt: "Bem-vindo ao FABOT!", en: "Welcome to FABOT!" },
@@ -114,6 +172,17 @@ interface Chat {
   keyPoints: KeyPoint[];
   createdAt: Date;
   updatedAt: Date;
+  model: string;
+  isShared?: boolean;
+  shareId?: string;
+}
+
+interface LLMProvider {
+  id: string;
+  name: string;
+  icon: string;
+  models: string[];
+  apiEndpoint: string;
 }
 
 export default function FabotChat() {
@@ -131,8 +200,19 @@ export default function FabotChat() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMobileKeyPoints, setShowMobileKeyPoints] = useState(false);
   
+  // 🤖 New advanced features
+  const [selectedModel, setSelectedModel] = useState('groq');
+  const [selectedModelName, setSelectedModelName] = useState('llama-3.1-70b-versatile');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [codeMode, setCodeMode] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  const [imageGenMode, setImageGenMode] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 🌍 Função para traduzir
   const t = (key: string): string => {
@@ -198,7 +278,8 @@ export default function FabotChat() {
       },
       keyPoints: [],
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      model: selectedModel
     };
 
     const updatedChats = [...chats, newChat];
@@ -453,6 +534,103 @@ RULES:
     }
   }, [messages.length, isAnalyzing, analyzeConversation]);
 
+  // 📎 File attachment handler
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const attachment: Attachment = {
+          id: Date.now().toString() + Math.random(),
+          name: file.name,
+          type: file.type.startsWith('image/') ? 'image' : 'pdf',
+          url: e.target?.result as string,
+          size: file.size
+        };
+        setAttachments(prev => [...prev, attachment]);
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    // Reset input
+    if (event.target) {
+      event.target.value = '';
+    }
+  };
+
+  // 🗑️ Remove attachment
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(att => att.id !== id));
+  };
+
+  // 🔗 Share chat functionality
+  const shareChat = async () => {
+    const chatData = {
+      id: currentChatId,
+      messages: messages,
+      keyPoints: keyPoints,
+      timestamp: new Date().toISOString()
+    };
+    
+    try {
+      const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fabot-chat-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erro ao compartilhar chat:', error);
+    }
+  };
+
+  // 📥 Import chat
+  const importChat = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const chatData = JSON.parse(e.target?.result as string);
+        const importedChat: Chat = {
+          id: Date.now().toString(),
+          name: `Imported Chat ${Date.now()}`,
+          messages: chatData.messages,
+          keyPoints: chatData.keyPoints || [],
+          analysis: { keyPoints: [], topics: [], actionItems: [], questions: [], summary: "", nextSteps: "" },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          model: selectedModel
+        };
+        
+        const updatedChats = [...chats, importedChat];
+        setChats(updatedChats);
+        setCurrentChatId(importedChat.id);
+        setMessages(importedChat.messages);
+        setKeyPoints(importedChat.keyPoints);
+        saveToStorage(updatedChats, importedChat.id);
+      } catch (error) {
+        console.error('Erro ao importar chat:', error);
+      }
+    };
+    reader.readAsText(file);
+    
+    if (event.target) {
+      event.target.value = '';
+    }
+  };
+
+  // 🧠 Get current provider
+  const getCurrentProvider = () => {
+    return LLM_PROVIDERS.find(p => p.id === selectedModel) || LLM_PROVIDERS[0];
+  };
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -467,12 +645,16 @@ RULES:
       role: "user",
       content: input.trim(),
       timestamp: new Date(),
+      attachments: attachments.length > 0 ? [...attachments] : undefined,
+      model: selectedModel,
+      hasCode: codeMode
     };
 
     console.log('📤 ENVIANDO MENSAGEM:', userMessage.content);
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
+    setAttachments([]); // Clear attachments after sending
     setIsLoading(true);
 
     try {
@@ -496,6 +678,8 @@ RULES:
           role: "assistant",
           content: data.message,
           timestamp: new Date(),
+          model: selectedModel,
+          hasCode: data.message.includes('```')
         };
         console.log('📥 RESPOSTA RECEBIDA - DISPARANDO ANÁLISE!');
         const finalMessages = [...newMessages, assistantMessage];
@@ -598,6 +782,23 @@ RULES:
           >
             <MessageSquareIcon className="w-5 h-5 text-purple-300" />
           </button>
+
+          {/* Import Chat */}
+          <input
+            type="file"
+            accept=".json"
+            onChange={importChat}
+            className="hidden"
+            id="import-chat"
+          />
+          <button 
+            onClick={() => document.getElementById('import-chat')?.click()}
+            className="w-10 h-10 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center justify-center transition-colors"
+            title="Import Chat"
+          >
+            <DownloadIcon className="w-5 h-5 text-purple-300" />
+          </button>
+
           <button 
             onClick={() => setShowSettings(!showSettings)}
             className="w-10 h-10 bg-purple-600/20 hover:bg-purple-600/40 rounded-xl flex items-center justify-center transition-colors"
@@ -750,7 +951,99 @@ RULES:
                 </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {/* Model Selector */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowModelSelector(!showModelSelector)}
+                  className="p-2 bg-purple-600/20 hover:bg-purple-600/40 rounded-lg transition-colors flex items-center gap-2"
+                  title={t('selectModel')}
+                >
+                  <span className="text-sm">{getCurrentProvider().icon}</span>
+                  <span className="hidden md:block text-xs text-purple-300">{getCurrentProvider().name}</span>
+                </button>
+                
+                {showModelSelector && (
+                  <div className="absolute top-12 right-0 w-64 bg-black/90 backdrop-blur-xl border border-purple-500/20 rounded-2xl p-3 z-50">
+                    <h3 className="text-white font-medium mb-3 text-sm">Select AI Model</h3>
+                    <div className="space-y-2">
+                      {LLM_PROVIDERS.map(provider => (
+                        <div key={provider.id}>
+                          <button
+                            onClick={() => {
+                              setSelectedModel(provider.id);
+                              setSelectedModelName(provider.models[0]);
+                              setShowModelSelector(false);
+                            }}
+                            className={`w-full p-2 rounded-lg transition-colors text-left flex items-center gap-2 ${
+                              selectedModel === provider.id 
+                                ? 'bg-purple-600/40 text-white' 
+                                : 'hover:bg-purple-600/20 text-purple-300'
+                            }`}
+                          >
+                            <span>{provider.icon}</span>
+                            <span className="text-sm">{provider.name}</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Advanced Features */}
+              <button
+                onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                className={`p-2 rounded-lg transition-colors ${
+                  webSearchEnabled 
+                    ? 'bg-green-600/20 text-green-300 border border-green-500/30' 
+                    : 'bg-purple-600/20 hover:bg-purple-600/40 text-purple-300'
+                }`}
+                title={t('webSearch')}
+              >
+                <SearchIcon className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => setCodeMode(!codeMode)}
+                className={`p-2 rounded-lg transition-colors ${
+                  codeMode 
+                    ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30' 
+                    : 'bg-purple-600/20 hover:bg-purple-600/40 text-purple-300'
+                }`}
+                title={t('codeMode')}
+              >
+                <CodeIcon className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => setImageGenMode(!imageGenMode)}
+                className={`p-2 rounded-lg transition-colors ${
+                  imageGenMode 
+                    ? 'bg-pink-600/20 text-pink-300 border border-pink-500/30' 
+                    : 'bg-purple-600/20 hover:bg-purple-600/40 text-purple-300'
+                }`}
+                title={t('imageGeneration')}
+              >
+                <ImageIcon className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => setShowStats(!showStats)}
+                className="p-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 rounded-lg transition-colors"
+                title={t('chatStats')}
+              >
+                <BrainIcon className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={shareChat}
+                className="p-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 rounded-lg transition-colors"
+                title={t('shareChat')}
+              >
+                <ShareIcon className="w-4 h-4" />
+              </button>
+              
               {/* Botão de idioma */}
               <button
                 onClick={() => setLanguage(language === 'pt' ? 'en' : 'pt')}
@@ -847,9 +1140,78 @@ RULES:
                     ? 'bg-gradient-to-r from-purple-600/80 to-pink-600/80 text-white border border-purple-400/30'
                     : 'bg-black/40 border border-purple-500/20 text-purple-100'
                 }`}>
+                  {/* Attachments */}
+                  {message.attachments && message.attachments.length > 0 && (
+                    <div className="mb-3">
+                      <div className="flex flex-wrap gap-2">
+                        {message.attachments.map(attachment => (
+                          <div key={attachment.id} className="relative">
+                            {attachment.type === 'image' ? (
+                              <img 
+                                src={attachment.url} 
+                                alt={attachment.name}
+                                className="max-w-xs max-h-48 rounded-lg border border-purple-500/30 shadow-lg"
+                              />
+                            ) : (
+                              <div className="flex items-center gap-2 bg-purple-600/20 rounded-lg p-2 border border-purple-500/30">
+                                <PaperclipIcon className="w-4 h-4 text-purple-300" />
+                                <span className="text-sm text-purple-300">{attachment.name}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Message content with enhanced code highlighting */}
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {message.content}
+                    {message.content.split('```').map((part, index) => {
+                      if (index % 2 === 1) {
+                        // This is code
+                        const lines = part.split('\n');
+                        const language = lines[0].trim();
+                        const code = lines.slice(1).join('\n');
+                        
+                        return (
+                          <div key={index} className="bg-black/60 rounded-lg p-4 my-3 border border-purple-500/30 font-mono">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2 text-xs text-purple-400">
+                                <CodeIcon className="w-3 h-3" />
+                                <span>{language || 'Code'}</span>
+                              </div>
+                              <button
+                                onClick={() => navigator.clipboard.writeText(code)}
+                                className="p-1 hover:bg-purple-600/20 rounded text-purple-400 hover:text-purple-300 transition-colors"
+                                title="Copy code"
+                              >
+                                <CopyIcon className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <pre className="text-green-300 text-sm overflow-x-auto">
+                              {code}
+                            </pre>
+                          </div>
+                        );
+                      }
+                      return <span key={index}>{part}</span>;
+                    })}
                   </div>
+
+                  {/* Message metadata */}
+                  {message.model && (
+                    <div className="mt-3 pt-2 border-t border-purple-500/20 flex items-center gap-2 text-xs text-purple-400">
+                      <span>{LLM_PROVIDERS.find(p => p.id === message.model)?.icon || '🤖'}</span>
+                      <span>{LLM_PROVIDERS.find(p => p.id === message.model)?.name || message.model}</span>
+                      {message.hasCode && (
+                        <>
+                          <span>•</span>
+                          <CodeIcon className="w-3 h-3" />
+                          <span>Code included</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -884,14 +1246,82 @@ RULES:
 
         {/* Input area com estilo Libra */}
         <div className="border-t border-purple-500/20 bg-black/20 backdrop-blur-xl p-3 md:p-6">
-          <form onSubmit={sendMessage} className="flex gap-4 items-end max-w-4xl mx-auto">
+          {/* Attachments Preview */}
+          {attachments.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {attachments.map(attachment => (
+                <div key={attachment.id} className="flex items-center gap-2 bg-purple-600/20 rounded-lg p-2 border border-purple-500/30">
+                  {attachment.type === 'image' ? (
+                    <ImageIcon className="w-4 h-4 text-purple-300" />
+                  ) : (
+                    <PaperclipIcon className="w-4 h-4 text-purple-300" />
+                  )}
+                  <span className="text-xs text-purple-300 truncate max-w-32">{attachment.name}</span>
+                  <button
+                    onClick={() => removeAttachment(attachment.id)}
+                    className="p-1 hover:bg-purple-700/50 rounded"
+                  >
+                    <XIcon className="w-3 h-3 text-purple-400" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Status Indicators */}
+          <div className="mb-3 flex flex-wrap items-center gap-3 text-xs">
+            {webSearchEnabled && (
+              <div className="flex items-center gap-1 text-green-300 bg-green-600/10 px-2 py-1 rounded-lg border border-green-500/20">
+                <SearchIcon className="w-3 h-3" />
+                <span>Web Search</span>
+              </div>
+            )}
+            {codeMode && (
+              <div className="flex items-center gap-1 text-blue-300 bg-blue-600/10 px-2 py-1 rounded-lg border border-blue-500/20">
+                <CodeIcon className="w-3 h-3" />
+                <span>Code Mode</span>
+              </div>
+            )}
+            {imageGenMode && (
+              <div className="flex items-center gap-1 text-pink-300 bg-pink-600/10 px-2 py-1 rounded-lg border border-pink-500/20">
+                <ImageIcon className="w-3 h-3" />
+                <span>Image Gen</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1 text-purple-300 bg-purple-600/10 px-2 py-1 rounded-lg border border-purple-500/20">
+              <span>{getCurrentProvider().icon}</span>
+              <span>{getCurrentProvider().name}</span>
+            </div>
+          </div>
+
+          <form onSubmit={sendMessage} className="flex gap-3 items-end max-w-4xl mx-auto">
+            {/* File input (hidden) */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            
+            {/* Attachment button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-3 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 rounded-xl transition-colors"
+              title={t('attachFile')}
+            >
+              <PaperclipIcon className="w-5 h-5" />
+            </button>
+            
             <div className="flex-1">
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={t('typePlaceholder')}
+                placeholder={codeMode ? "Enter your code or programming question..." : t('typePlaceholder')}
                 className="w-full p-4 bg-black/40 backdrop-blur-xl border border-purple-500/30 rounded-2xl text-white placeholder-purple-400/60 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-32 min-h-[3rem]"
                 rows={1}
               />
@@ -902,7 +1332,11 @@ RULES:
               disabled={isLoading || !input.trim()}
               className="p-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl transition-all duration-200 flex items-center justify-center shadow-lg"
             >
-              <SendIcon className="w-5 h-5" />
+              {isLoading ? (
+                <RefreshCwIcon className="w-5 h-5 animate-spin" />
+              ) : (
+                <SendIcon className="w-5 h-5" />
+              )}
             </button>
           </form>
         </div>
@@ -1096,6 +1530,125 @@ RULES:
             className="flex-1"
             onClick={() => setShowMobileMenu(false)}
           />
+        </div>
+      )}
+
+      {/* 📊 Stats Modal */}
+      {showStats && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-black/90 backdrop-blur-xl border border-purple-500/20 rounded-3xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center">
+                  <BrainIcon className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Chat Statistics</h2>
+                  <p className="text-purple-300/80 text-sm">Your FABOT usage insights</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowStats(false)}
+                className="p-2 hover:bg-purple-700/30 rounded-xl transition-colors"
+              >
+                <XIcon className="w-5 h-5 text-purple-300" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {/* Total Chats */}
+              <div className="bg-purple-600/10 border border-purple-500/20 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <MessageSquareIcon className="w-8 h-8 text-purple-400" />
+                  <div>
+                    <div className="text-2xl font-bold text-white">{chats.length}</div>
+                    <div className="text-purple-300 text-sm">Total Chats</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Messages */}
+              <div className="bg-green-600/10 border border-green-500/20 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <SendIcon className="w-8 h-8 text-green-400" />
+                  <div>
+                    <div className="text-2xl font-bold text-white">
+                      {chats.reduce((total, chat) => total + chat.messages.length, 0)}
+                    </div>
+                    <div className="text-green-300 text-sm">Total Messages</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Key Points Generated */}
+              <div className="bg-yellow-600/10 border border-yellow-500/20 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <LightbulbIcon className="w-8 h-8 text-yellow-400" />
+                  <div>
+                    <div className="text-2xl font-bold text-white">
+                      {chats.reduce((total, chat) => total + chat.keyPoints.length, 0)}
+                    </div>
+                    <div className="text-yellow-300 text-sm">Key Points</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Most Used Model */}
+              <div className="bg-blue-600/10 border border-blue-500/20 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <BrainIcon className="w-8 h-8 text-blue-400" />
+                  <div>
+                    <div className="text-xl font-bold text-white">{getCurrentProvider().icon}</div>
+                    <div className="text-blue-300 text-sm">Current Model</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="bg-purple-600/5 border border-purple-500/10 rounded-2xl p-4">
+              <h3 className="text-white font-medium mb-3 flex items-center gap-2">
+                <ZapIcon className="w-4 h-4" />
+                Recent Activity
+              </h3>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {chats.slice(0, 5).map(chat => (
+                  <div key={chat.id} className="flex items-center justify-between text-sm">
+                    <span className="text-purple-200 truncate">{chat.name}</span>
+                    <span className="text-purple-400 text-xs">
+                      {formatTime(chat.updatedAt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={async () => {
+                  const allChatsData = chats.map(chat => ({
+                    ...chat,
+                    timestamp: new Date().toISOString()
+                  }));
+                  
+                  const blob = new Blob([JSON.stringify(allChatsData, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `fabot-all-chats-${Date.now()}.json`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }}
+                className="flex-1 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                <DownloadIcon className="w-4 h-4" />
+                Export All Chats
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
